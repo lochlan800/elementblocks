@@ -160,6 +160,22 @@
     box-shadow: inset 0 0 0 2px rgba(255, 80, 80, .7);
   }
 
+  /* hovering shape would complete this row/column */
+  .cell.preview-line {
+    filter: brightness(1.45);
+    box-shadow: inset 0 0 0 2px rgba(255, 225, 77, .95), 0 0 14px rgba(255, 225, 77, .65);
+    animation: linePulse .7s ease-in-out infinite alternate;
+  }
+
+  .cell.preview-line:not(.filled) {
+    background: rgba(255, 225, 77, .28);
+  }
+
+  @keyframes linePulse {
+    from { filter: brightness(1.25); }
+    to { filter: brightness(1.65); }
+  }
+
   /* ---- tray ---- */
   #tray {
     display: flex;
@@ -619,7 +635,19 @@
 
   function clearPreview() {
     for (const row of cells)
-      for (const cell of row) cell.classList.remove("preview-ok", "preview-bad");
+      for (const cell of row) cell.classList.remove("preview-ok", "preview-bad", "preview-line");
+  }
+
+  // Rows/columns that would become full if the shape were placed at (row, col).
+  function completedLines(matrix, row, col) {
+    const temp = board.map((r) => r.slice());
+    for (let r = 0; r < matrix.length; r++)
+      for (let c = 0; c < matrix[r].length; c++)
+        if (matrix[r][c]) temp[row + r][col + c] = true;
+    const rows = [], colsOut = [];
+    for (let r = 0; r < SIZE; r++) if (temp[r].every(Boolean)) rows.push(r);
+    for (let c = 0; c < SIZE; c++) if (temp.every((tr) => tr[c])) colsOut.push(c);
+    return { rows, cols: colsOut };
   }
 
   function moveDrag(e) {
@@ -641,6 +669,11 @@
           cells[br][bc].classList.add(cls);
         }
       }
+    }
+    if (ok) {
+      const lines = completedLines(shape.matrix, target.row, target.col);
+      for (const r of lines.rows) for (let c = 0; c < SIZE; c++) cells[r][c].classList.add("preview-line");
+      for (const c of lines.cols) for (let r = 0; r < SIZE; r++) cells[r][c].classList.add("preview-line");
     }
   }
 
