@@ -110,6 +110,29 @@
   .el-air       { background: linear-gradient(135deg, #ffffff, #a8e6e0 60%, #5fbdb5); box-shadow: inset 0 2px 3px rgba(255,255,255,.5), inset 0 -3px 5px rgba(0,0,0,.25), 0 0 10px rgba(168,230,224,.55); }
   .el-lightning { background: linear-gradient(135deg, #ffe97d, #c77dff 60%, #8d36d6); box-shadow: inset 0 2px 3px rgba(255,255,255,.4), inset 0 -3px 5px rgba(0,0,0,.35), 0 0 10px rgba(199,125,255,.55); }
 
+  /* ---- element symbols on blocks ---- */
+  .el-fire::after      { content: "🔥"; }
+  .el-water::after     { content: "💧"; }
+  .el-earth::after     { content: "🍃"; }
+  .el-air::after       { content: "💨"; }
+  .el-lightning::after { content: "⚡"; }
+
+  [class*="el-"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  [class*="el-"]::after {
+    font-size: calc(var(--cell) * .5);
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
+  }
+
+  .mini-cell[class*="el-"]::after {
+    font-size: calc(var(--cell) * .26);
+  }
+
   .cell.placed { animation: pop .22s ease; }
 
   @keyframes pop {
