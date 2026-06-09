@@ -393,7 +393,7 @@
   const bestNoteEl = document.getElementById("best-note");
   const restartBtn = document.getElementById("restart");
 
-  let board, currentShapes, score, best, animating;
+  let board, currentShapes, score, best, animating, dealCount;
   const cells = [];
 
   best = Number(localStorage.getItem("elementblocks-best")) || 0;
@@ -414,6 +414,7 @@
     currentShapes = [];
     score = 0;
     animating = false;
+    dealCount = 0;
     scoreEl.textContent = "0";
     overlayEl.classList.remove("show");
     dealShapes();
@@ -421,11 +422,46 @@
     renderTray();
   }
 
-  function dealShapes() {
-    currentShapes = Array.from({ length: 3 }, () => ({
+  function randomShape() {
+    return {
       matrix: SHAPES[Math.floor(Math.random() * SHAPES.length)],
       element: ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)],
-    }));
+    };
+  }
+
+  function shapeCompletesLine(matrix) {
+    for (let r = 0; r <= SIZE - matrix.length; r++)
+      for (let c = 0; c <= SIZE - matrix[0].length; c++)
+        if (canPlace(matrix, r, c)) {
+          const lines = completedLines(matrix, r, c);
+          if (lines.rows.length || lines.cols.length) return true;
+        }
+    return false;
+  }
+
+  function dealShapes() {
+    dealCount++;
+    currentShapes = Array.from({ length: 3 }, randomShape);
+
+    // Board-aware dealing: after the first 3 deals, bias the hand so that a
+    // line completion is on offer. The chance of that help decays as the
+    // game goes on, so line opportunities become less obvious over time.
+    if (dealCount <= 3) return;
+    const helpChance = Math.max(0.35, 0.95 - (dealCount - 4) * 0.06);
+    if (Math.random() > helpChance) return;
+    if (currentShapes.some((s) => shapeCompletesLine(s.matrix))) return;
+    const candidates = SHAPES.filter(shapeCompletesLine);
+    if (!candidates.length) return;
+    // Early on hand over the smallest (most obvious) gap-filler; later pick
+    // any qualifying shape so the opportunity takes more spotting.
+    candidates.sort((a, b) => a.flat().filter(Boolean).length - b.flat().filter(Boolean).length);
+    const pick = dealCount < 8
+      ? candidates[0]
+      : candidates[Math.floor(Math.random() * candidates.length)];
+    currentShapes[Math.floor(Math.random() * 3)] = {
+      matrix: pick,
+      element: ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)],
+    };
   }
 
   function renderBoard(placedCells = []) {
@@ -702,6 +738,13 @@
     window.removeEventListener("pointerup", endDrag);
     window.removeEventListener("pointercancel", cancelDrag);
   }
+
+  // Minimal hook for automated tests; unused during normal play.
+  window.__eb = {
+    setState(b, deals) { board = b; dealCount = deals; renderBoard(); },
+    redeal() { dealShapes(); renderTray(); },
+    shapes: () => currentShapes,
+  };
 
   restartBtn.addEventListener("click", newGame);
 
