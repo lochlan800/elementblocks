@@ -77,19 +77,45 @@
 
   .score-box .value.bump { animation: bump .3s ease; }
 
-  #music-btn {
-    font: inherit;
-    font-size: 20px;
+  /* ---- difficulty gauge ---- */
+  #difficulty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     background: rgba(255, 255, 255, .06);
     border: 1px solid rgba(255, 255, 255, .12);
     border-radius: 12px;
-    padding: 6px 14px;
-    cursor: pointer;
-    line-height: 1;
-    align-self: stretch;
+    padding: 5px 12px;
   }
 
-  #music-btn.off { opacity: .4; filter: grayscale(1); }
+  #diff-bar {
+    width: 12px;
+    height: 30px;
+    background: rgba(0, 0, 0, .45);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+  }
+
+  #diff-fill {
+    width: 100%;
+    height: 0%;
+    /* green at the bottom rising to red at the top */
+    background: linear-gradient(to top, #7dff8a, #ffe14d 55%, #ff5e2e 80%, #ff2e4d) bottom / 100% 30px no-repeat;
+    transition: height .4s ease;
+  }
+
+  #diff-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #8fa0c7;
+    white-space: nowrap;
+  }
 
   /* ---- bomb button ---- */
   #bomb-btn {
@@ -561,7 +587,10 @@
     <div class="label">Best</div>
     <div class="value" id="best">0</div>
   </div>
-  <button id="music-btn" title="Toggle music">🎵</button>
+  <div id="difficulty" title="Difficulty rises with every set of shapes">
+    <div id="diff-bar"><div id="diff-fill"></div></div>
+    <div id="diff-label">LV 1</div>
+  </div>
   <button id="bomb-btn" title="Collect 15 stars to buy a bomb">
     <span id="bomb-icon">💣</span>
     <span id="bomb-label">0/15 ⭐</span>
@@ -642,6 +671,22 @@
 
   let board, currentShapes, score, best, animating, dealCount, over;
   let combo = 0; // consecutive placements that each cleared at least one line
+
+  /* ---------- difficulty ---------- */
+  // Rises by one level per finished set of 3 shapes, maxing out at level 21:
+  // dealing help fades, big shapes show up more, and the turn timer shrinks.
+
+  const diffFillEl = document.getElementById("diff-fill");
+  const diffLabelEl = document.getElementById("diff-label");
+
+  function difficulty() {
+    return Math.min(1, Math.max(0, (dealCount - 1) / 20));
+  }
+
+  function updateDifficultyUI() {
+    diffFillEl.style.height = difficulty() * 100 + "%";
+    diffLabelEl.textContent = "LV " + Math.max(1, dealCount);
+  }
 
   /* ---------- stars & bombs ---------- */
 
@@ -833,7 +878,6 @@
   // a bright square-wave 16-bit lead quantized to the grid, and digital
   // zip effects at phrase ends. Scheduled with the look-ahead pattern.
 
-  let musicOn = localStorage.getItem("elementblocks-music") !== "off";
   let musicGain = null;
   let musicTimer = null;
   let musicStep = 0;
@@ -950,7 +994,7 @@
   }
 
   function startMusic() {
-    if (!musicOn || !audioCtx || musicTimer) return;
+    if (!audioCtx || musicTimer) return;
     if (!musicGain) {
       musicGain = audioCtx.createGain();
       musicGain.gain.value = 0.5; // keep the music under the sound effects
@@ -968,26 +1012,27 @@
     }, 60);
   }
 
-  function stopMusic() {
-    clearInterval(musicTimer);
-    musicTimer = null;
-  }
-
   /* ---------- turn timer ---------- */
 
-  const TURN_TIME = 15; // seconds to place all 3 shapes
+  const TURN_TIME = 15; // seconds to place all 3 shapes at the easiest level
+
+  // The turn timer tightens from 15s down to 9s as the difficulty climbs.
+  function turnTime() {
+    return TURN_TIME - 6 * difficulty();
+  }
+
   let timeLeft = TURN_TIME;
   let timerInterval = null;
   let lastTick = 0;
 
   function updateTimerUI() {
-    timerFillEl.style.width = (timeLeft / TURN_TIME) * 100 + "%";
+    timerFillEl.style.width = (timeLeft / turnTime()) * 100 + "%";
     timerTextEl.textContent = Math.ceil(timeLeft);
     timerWrapEl.classList.toggle("low", timeLeft <= 3);
   }
 
   function resetTimer() {
-    timeLeft = TURN_TIME;
+    timeLeft = turnTime();
     updateTimerUI();
   }
 
@@ -1050,9 +1095,13 @@
     startTimer();
   }
 
+  const BIG_SHAPES = SHAPES.filter((m) => m.flat().filter(Boolean).length >= 5);
+
   function randomShape() {
+    // big, awkward shapes show up more often as the difficulty climbs
+    const pool = Math.random() < 0.1 + 0.5 * difficulty() ? BIG_SHAPES : SHAPES;
     return {
-      matrix: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+      matrix: pool[Math.floor(Math.random() * pool.length)],
       element: ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)],
     };
   }
@@ -1069,14 +1118,15 @@
 
   function dealShapes() {
     dealCount++;
+    updateDifficultyUI();
     resetTimer();
     currentShapes = Array.from({ length: 3 }, randomShape);
 
     // Board-aware dealing: after the first 3 deals, bias the hand so that a
-    // line completion is on offer. The chance of that help decays as the
-    // game goes on, so line opportunities become less obvious over time.
+    // line completion is on offer. The chance of that help fades as the
+    // difficulty climbs, so line opportunities become less obvious over time.
     if (dealCount <= 3) return;
-    const helpChance = Math.max(0.35, 0.95 - (dealCount - 4) * 0.06);
+    const helpChance = 0.95 - 0.7 * difficulty();
     if (Math.random() > helpChance) return;
     if (currentShapes.some((s) => shapeCompletesLine(s.matrix))) return;
     const candidates = SHAPES.filter(shapeCompletesLine);
@@ -1515,18 +1565,9 @@
 
   restartBtn.addEventListener("click", newGame);
 
-  const musicBtn = document.getElementById("music-btn");
-  musicBtn.classList.toggle("off", !musicOn);
-  musicBtn.addEventListener("click", () => {
-    musicOn = !musicOn;
-    musicBtn.classList.toggle("off", !musicOn);
-    localStorage.setItem("elementblocks-music", musicOn ? "on" : "off");
-    if (musicOn) {
-      ensureAudio();
-    } else {
-      stopMusic();
-    }
-  });
+  // Browsers block audio until the first interaction, so the soundtrack
+  // starts the moment the player touches or clicks anywhere.
+  document.addEventListener("pointerdown", ensureAudio, { once: true });
 
   newGame();
 })();

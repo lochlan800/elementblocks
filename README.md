@@ -17,8 +17,11 @@ Open `index.html` in any modern browser — no install or build step needed.
 - **Pure element line**: clear a line made entirely of one element and the
   line bonus is **tripled** (stacks with the combo streak).
 - You're dealt **3 shapes** at a time; a new set arrives once all three are placed.
-- You have **15 seconds** to place all 3 shapes — the timer resets when a new
-  set arrives, and the game ends if it runs out.
+- **Difficulty climbs with every set** — watch the gauge next to the bomb
+  button fill toward red: shapes get bigger, helpful deals get rarer, and the
+  turn timer shrinks from 15 seconds down to 9.
+- You have **15 seconds** to place all 3 shapes (less at higher difficulty) —
+  the timer resets when a new set arrives, and the game ends if it runs out.
 - The game also ends when none of your remaining shapes fit anywhere on the grid.
 - Your best score is saved in the browser.
 
@@ -34,6 +37,5 @@ its own glow.
   between sessions.
 
 A synthesized high-energy chiptune soundtrack loops in the background — 135 BPM
-EDM drums, punchy synth bass, and a bright 16-bit lead (it starts on your first
-move, since browsers require an interaction before playing audio). Use the
-🎵 button to toggle it; your choice is remembered.
+EDM drums, punchy synth bass, and a bright 16-bit lead. It starts as soon as you
+first click or touch the page (browsers require an interaction before audio).
