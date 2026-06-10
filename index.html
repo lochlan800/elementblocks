@@ -452,6 +452,74 @@
 
   let board, currentShapes, score, best, animating, dealCount, over;
 
+  /* ---------- sound ---------- */
+
+  let audioCtx = null;
+
+  // Browsers only allow audio after a user gesture, so this is called from
+  // the start of every drag.
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  // Lego-style snap: a sharp filtered-noise click plus a low "seat" thump.
+  function playSnap() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const len = Math.floor(audioCtx.sampleRate * 0.04);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const click = audioCtx.createBufferSource();
+    click.buffer = buf;
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 2600;
+    bp.Q.value = 1.2;
+    const cg = audioCtx.createGain();
+    cg.gain.setValueAtTime(0.5, t);
+    cg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    click.connect(bp).connect(cg).connect(audioCtx.destination);
+    click.start(t);
+
+    const thump = audioCtx.createOscillator();
+    thump.type = "sine";
+    thump.frequency.setValueAtTime(320, t);
+    thump.frequency.exponentialRampToValueAtTime(140, t + 0.06);
+    const tg = audioCtx.createGain();
+    tg.gain.setValueAtTime(0.35, t);
+    tg.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    thump.connect(tg).connect(audioCtx.destination);
+    thump.start(t);
+    thump.stop(t + 0.09);
+  }
+
+  // Rewarding line-clear chime: a quick rising arpeggio, with an extra high
+  // note when several lines clear at once.
+  function playClear(lines) {
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+    if (lines > 1) notes.push(1318.5); // E6
+    notes.forEach((freq, i) => {
+      const t = t0 + i * 0.07;
+      const osc = audioCtx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.3, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(t);
+      osc.stop(t + 0.5);
+    });
+  }
+
   /* ---------- turn timer ---------- */
 
   const TURN_TIME = 10; // seconds to place all 3 shapes
@@ -658,6 +726,7 @@
       }
     }
     currentShapes[shapeIndex] = null;
+    playSnap();
     addScore(blockCount);
     renderBoard(placedCells);
 
@@ -671,6 +740,7 @@
       const bonus = 10 * lines * lines;
       const rect = boardEl.getBoundingClientRect();
       spawnScorePop(bonus, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      playClear(lines);
       addScore(bonus);
       for (const r of fullRows) for (let c = 0; c < SIZE; c++) cells[r][c].classList.add("clearing");
       for (const c of fullCols) for (let r = 0; r < SIZE; r++) cells[r][c].classList.add("clearing");
@@ -724,6 +794,7 @@
     const shape = currentShapes[shapeIndex];
     if (!shape) return;
     e.preventDefault();
+    ensureAudio();
 
     const cell = cellSizePx();
     const gap = gapPx();
