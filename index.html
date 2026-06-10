@@ -465,6 +465,14 @@
     text-align: center;
   }
 
+  .mono-tag {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: #ff9a4d;
+    text-shadow: 0 0 10px rgba(255, 154, 77, .9), 0 2px 4px rgba(0, 0, 0, .6);
+    text-align: center;
+  }
+
   @keyframes floatUp {
     0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
     20% { opacity: 1; transform: translate(-50%, -10px) scale(1.1); }
@@ -1157,10 +1165,16 @@
     }
   }
 
-  function spawnScorePop(points, x, y, comboLevel) {
+  function spawnScorePop(points, x, y, comboLevel, mono) {
     const pop = document.createElement("div");
     pop.className = "score-pop";
     pop.textContent = "+" + points;
+    if (mono) {
+      const tag = document.createElement("div");
+      tag.className = "mono-tag";
+      tag.textContent = "PURE ELEMENT ×3";
+      pop.appendChild(tag);
+    }
     if (comboLevel >= 2) {
       const tag = document.createElement("div");
       tag.className = "combo-tag";
@@ -1197,9 +1211,13 @@
     if (lines > 0) {
       animating = true;
       combo++;
-      const bonus = LINE_POINTS[Math.min(lines, LINE_POINTS.length - 1)] * combo;
+      // a cleared line made of a single element triples the bonus
+      let mono = false;
+      for (const r of fullRows) if (new Set(board[r]).size === 1) mono = true;
+      for (const c of fullCols) if (new Set(board.map((row) => row[c])).size === 1) mono = true;
+      const bonus = LINE_POINTS[Math.min(lines, LINE_POINTS.length - 1)] * combo * (mono ? 3 : 1);
       const rect = boardEl.getBoundingClientRect();
-      spawnScorePop(bonus, rect.left + rect.width / 2, rect.top + rect.height / 2, combo);
+      spawnScorePop(bonus, rect.left + rect.width / 2, rect.top + rect.height / 2, combo, mono);
       playClear(lines);
       addScore(bonus);
       for (const r of fullRows) for (let c = 0; c < SIZE; c++) cells[r][c].classList.add("clearing");

@@ -14,6 +14,8 @@ Open `index.html` in any modern browser — no install or build step needed.
 - **Combo streak**: clear lines on back-to-back placements and the line bonus
   is multiplied — ×2 on the second clear in a row, ×3 on the third, and so on.
   A placement that clears nothing resets the streak.
+- **Pure element line**: clear a line made entirely of one element and the
+  line bonus is **tripled** (stacks with the combo streak).
 - You're dealt **3 shapes** at a time; a new set arrives once all three are placed.
 - You have **15 seconds** to place all 3 shapes — the timer resets when a new
   set arrives, and the game ends if it runs out.
