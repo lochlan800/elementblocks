@@ -619,7 +619,7 @@
   /* ---------- stars & bombs ---------- */
 
   const BOMB_COST = 20;
-  const STAR_INTERVAL = 60000; // a star lands on a random block every minute
+  const STAR_INTERVAL = 20000; // a star lands on a random block every 20 seconds
   let stars; // 8x8 booleans alongside `board`
   let starCount = Number(localStorage.getItem("elementblocks-stars")) || 0;
   let bombCount = Number(localStorage.getItem("elementblocks-bombs")) || 0;
