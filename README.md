@@ -23,7 +23,7 @@ its own glow.
 
 - Every 20 seconds, a ⭐ lands on a random block on the grid.
 - Clear a line containing starred blocks and the stars fly into the 💣 button.
-- Collect **20 stars** to buy a bomb, then click the 💣 button and pick a spot on
+- Collect **15 stars** to buy a bomb, then click the 💣 button and pick a spot on
   the grid: everything in a 3×3 blast disappears. Stars and bombs are saved
   between sessions.
 

@@ -546,9 +546,9 @@
     <div class="value" id="best">0</div>
   </div>
   <button id="music-btn" title="Toggle music">🎵</button>
-  <button id="bomb-btn" title="Collect 20 stars to buy a bomb">
+  <button id="bomb-btn" title="Collect 15 stars to buy a bomb">
     <span id="bomb-icon">💣</span>
-    <span id="bomb-label">0/20 ⭐</span>
+    <span id="bomb-label">0/15 ⭐</span>
   </button>
 </div>
 
@@ -623,7 +623,7 @@
 
   /* ---------- stars & bombs ---------- */
 
-  const BOMB_COST = 20;
+  const BOMB_COST = 15;
   const STAR_INTERVAL = 20000; // a star lands on a random block every 20 seconds
   let stars; // 8x8 booleans alongside `board`
   let starCount = Number(localStorage.getItem("elementblocks-stars")) || 0;
