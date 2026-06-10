@@ -19,6 +19,14 @@ Open `index.html` in any modern browser — no install or build step needed.
 Blocks come in five elements — fire, water, earth, air, and lightning — each with
 its own glow.
 
+## Stars and bombs
+
+- Every minute, a ⭐ lands on a random block on the grid.
+- Clear a line containing starred blocks and the stars fly into the 💣 button.
+- Collect **20 stars** to buy a bomb, then click the 💣 button and pick a spot on
+  the grid: everything in a 3×3 blast disappears. Stars and bombs are saved
+  between sessions.
+
 A synthesized high-energy chiptune soundtrack loops in the background — 135 BPM
 EDM drums, punchy synth bass, and a bright 16-bit lead (it starts on your first
 move, since browsers require an interaction before playing audio). Use the

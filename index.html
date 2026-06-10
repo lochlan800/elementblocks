@@ -91,6 +91,118 @@
 
   #music-btn.off { opacity: .4; filter: grayscale(1); }
 
+  /* ---- bomb button ---- */
+  #bomb-btn {
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: #e8ecf7;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 12px;
+    padding: 4px 12px;
+    cursor: pointer;
+  }
+
+  #bomb-icon { font-size: 20px; line-height: 1; filter: grayscale(.7); opacity: .65; }
+
+  #bomb-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8fa0c7;
+    white-space: nowrap;
+  }
+
+  #bomb-btn.ready {
+    border-color: rgba(255, 225, 77, .8);
+    animation: readyPulse .9s ease-in-out infinite alternate;
+  }
+
+  #bomb-btn.ready #bomb-icon, #bomb-btn.has-bomb #bomb-icon { filter: none; opacity: 1; }
+
+  #bomb-btn.has-bomb { border-color: rgba(255, 160, 60, .6); }
+
+  #bomb-btn.armed {
+    border-color: #ff7a2e;
+    box-shadow: 0 0 14px rgba(255, 122, 46, .8);
+  }
+
+  #bomb-btn.bump { animation: bump .3s ease; }
+
+  @keyframes readyPulse {
+    from { box-shadow: 0 0 5px rgba(255, 225, 77, .3); }
+    to { box-shadow: 0 0 16px rgba(255, 225, 77, .75); }
+  }
+
+  /* ---- stars on blocks ---- */
+  .star {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    font-size: calc(var(--cell) * .34);
+    line-height: 1;
+    z-index: 2;
+    pointer-events: none;
+    animation: starPop .35s ease, twinkle 1.1s ease-in-out .35s infinite alternate;
+  }
+
+  @keyframes starPop {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.5); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes twinkle {
+    from { filter: drop-shadow(0 0 2px rgba(255, 225, 77, .5)); }
+    to { filter: drop-shadow(0 0 7px rgba(255, 225, 77, 1)); }
+  }
+
+  .star-fly {
+    position: fixed;
+    z-index: 80;
+    font-size: 24px;
+    transform: translate(-50%, -50%) scale(1.3);
+    transition: left .6s ease-in, top .6s ease-in, transform .6s ease-in;
+    pointer-events: none;
+    filter: drop-shadow(0 0 6px rgba(255, 225, 77, .9));
+  }
+
+  /* ---- bomb targeting & explosion ---- */
+  #board.bomb-mode { cursor: crosshair; }
+
+  .cell.bomb-target { box-shadow: inset 0 0 0 2px rgba(255, 140, 46, .95); }
+  .cell.bomb-target:not(.filled) { background: rgba(255, 140, 46, .25); }
+  .cell.bomb-target.filled { filter: brightness(1.35) saturate(1.3); }
+
+  .cell.exploding { animation: explodePop .42s ease forwards; }
+
+  @keyframes explodePop {
+    0% { filter: brightness(1.8); }
+    60% { transform: scale(1.25); filter: brightness(2.4); }
+    100% { transform: scale(0); opacity: 0; filter: brightness(3); }
+  }
+
+  .shockwave {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 160, 60, .9);
+    box-shadow: 0 0 22px rgba(255, 120, 30, .8), inset 0 0 12px rgba(255, 160, 60, .6);
+    pointer-events: none;
+    z-index: 5;
+    animation: wave .5s ease-out forwards;
+  }
+
+  @keyframes wave {
+    from { transform: scale(.3); opacity: 1; }
+    to { transform: scale(8); opacity: 0; }
+  }
+
   @keyframes bump {
     50% { transform: scale(1.3); color: #ffe14d; }
   }
@@ -429,6 +541,10 @@
     <div class="value" id="best">0</div>
   </div>
   <button id="music-btn" title="Toggle music">🎵</button>
+  <button id="bomb-btn" title="Collect 20 stars to buy a bomb">
+    <span id="bomb-icon">💣</span>
+    <span id="bomb-label">0/20 ⭐</span>
+  </button>
 </div>
 
 <div id="timer-wrap">
@@ -495,8 +611,76 @@
   const finalScoreEl = document.getElementById("final-score");
   const bestNoteEl = document.getElementById("best-note");
   const restartBtn = document.getElementById("restart");
+  const bombBtn = document.getElementById("bomb-btn");
+  const bombLabel = document.getElementById("bomb-label");
 
   let board, currentShapes, score, best, animating, dealCount, over;
+
+  /* ---------- stars & bombs ---------- */
+
+  const BOMB_COST = 20;
+  const STAR_INTERVAL = 60000; // a star lands on a random block every minute
+  let stars; // 8x8 booleans alongside `board`
+  let starCount = Number(localStorage.getItem("elementblocks-stars")) || 0;
+  let bombCount = Number(localStorage.getItem("elementblocks-bombs")) || 0;
+  let bombArmed = false;
+  let starSpawner = null;
+
+  function saveMeta() {
+    localStorage.setItem("elementblocks-stars", starCount);
+    localStorage.setItem("elementblocks-bombs", bombCount);
+  }
+
+  function updateBombUI() {
+    bombBtn.classList.toggle("armed", bombArmed);
+    boardEl.classList.toggle("bomb-mode", bombArmed);
+    bombBtn.classList.toggle("has-bomb", bombCount > 0);
+    if (bombCount > 0) {
+      bombLabel.textContent = "×" + bombCount;
+      bombBtn.classList.remove("ready");
+    } else {
+      bombLabel.textContent = starCount + "/" + BOMB_COST + " ⭐";
+      bombBtn.classList.toggle("ready", starCount >= BOMB_COST);
+    }
+  }
+
+  function spawnStar() {
+    if (over) return;
+    const open = [];
+    for (let r = 0; r < SIZE; r++)
+      for (let c = 0; c < SIZE; c++)
+        if (board[r][c] && !stars[r][c]) open.push([r, c]);
+    if (!open.length) return;
+    const [r, c] = open[Math.floor(Math.random() * open.length)];
+    stars[r][c] = true;
+    renderBoard();
+  }
+
+  // Send a collected star flying from a cleared block to the bomb button.
+  function flyStarFrom(cellEl) {
+    const from = cellEl.getBoundingClientRect();
+    const fly = document.createElement("div");
+    fly.className = "star-fly";
+    fly.textContent = "⭐";
+    fly.style.left = from.left + from.width / 2 + "px";
+    fly.style.top = from.top + from.height / 2 + "px";
+    document.body.appendChild(fly);
+    void fly.offsetWidth;
+    const to = bombBtn.getBoundingClientRect();
+    fly.style.left = to.left + to.width / 2 + "px";
+    fly.style.top = to.top + to.height / 2 + "px";
+    fly.style.transform = "translate(-50%, -50%) scale(.4)";
+    setTimeout(() => {
+      fly.remove();
+      starCount++;
+      saveMeta();
+      updateBombUI();
+      bombBtn.classList.remove("bump");
+      void bombBtn.offsetWidth;
+      bombBtn.classList.add("bump");
+      playStarPing();
+    }, 620);
+  }
 
   /* ---------- sound ---------- */
 
@@ -565,6 +749,54 @@
       osc.start(t);
       osc.stop(t + 0.5);
     });
+  }
+
+  // Bomb explosion: a deep rumble of lowpassed noise under a falling sine.
+  function playBoom() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const len = Math.floor(audioCtx.sampleRate * 0.45);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(900, t);
+    lp.frequency.exponentialRampToValueAtTime(120, t + 0.4);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.7, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    src.connect(lp).connect(g).connect(audioCtx.destination);
+    src.start(t);
+
+    const o = audioCtx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.3);
+    const og = audioCtx.createGain();
+    og.gain.setValueAtTime(0.6, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.connect(og).connect(audioCtx.destination);
+    o.start(t);
+    o.stop(t + 0.4);
+  }
+
+  // Bright little ping when a star lands in the bomb button.
+  function playStarPing() {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(1568, t);
+    o.frequency.exponentialRampToValueAtTime(2349, t + 0.08);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t);
+    o.stop(t + 0.3);
   }
 
   /* ---------- background music ---------- */
@@ -771,16 +1003,21 @@
 
   function newGame() {
     board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+    stars = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
     currentShapes = [];
     score = 0;
     animating = false;
     dealCount = 0;
     over = false;
+    bombArmed = false;
+    clearInterval(starSpawner);
+    starSpawner = setInterval(spawnStar, STAR_INTERVAL);
     scoreEl.textContent = "0";
     overlayEl.classList.remove("show");
     dealShapes();
     renderBoard();
     renderTray();
+    updateBombUI();
     startTimer();
   }
 
@@ -834,6 +1071,7 @@
         cell.className = "cell";
         if (board[r][c]) cell.classList.add("filled", "el-" + board[r][c]);
         if (placedCells.some(([pr, pc]) => pr === r && pc === c)) cell.classList.add("placed");
+        cell.innerHTML = board[r][c] && stars[r][c] ? '<span class="star">⭐</span>' : "";
       }
     }
   }
@@ -938,8 +1176,13 @@
       for (const r of fullRows) for (let c = 0; c < SIZE; c++) cells[r][c].classList.add("clearing");
       for (const c of fullCols) for (let r = 0; r < SIZE; r++) cells[r][c].classList.add("clearing");
       setTimeout(() => {
-        for (const r of fullRows) for (let c = 0; c < SIZE; c++) board[r][c] = null;
-        for (const c of fullCols) for (let r = 0; r < SIZE; r++) board[r][c] = null;
+        const clearCell = (r, c) => {
+          if (board[r][c] && stars[r][c]) flyStarFrom(cells[r][c]);
+          board[r][c] = null;
+          stars[r][c] = false;
+        };
+        for (const r of fullRows) for (let c = 0; c < SIZE; c++) clearCell(r, c);
+        for (const c of fullCols) for (let r = 0; r < SIZE; r++) clearCell(r, c);
         animating = false;
         renderBoard();
         finishTurn();
@@ -970,6 +1213,104 @@
     overlayEl.classList.add("show");
   }
 
+  /* ---------- bomb placement ---------- */
+
+  function cellAtPoint(e) {
+    const rect = boardEl.getBoundingClientRect();
+    const cell = cellSizePx();
+    const gap = gapPx();
+    const col = Math.floor((e.clientX - rect.left - gap / 2) / (cell + gap));
+    const row = Math.floor((e.clientY - rect.top - gap / 2) / (cell + gap));
+    if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return null;
+    return { row, col };
+  }
+
+  function clearBombTarget() {
+    for (const row of cells)
+      for (const cell of row) cell.classList.remove("bomb-target");
+  }
+
+  function showBombTarget(row, col) {
+    clearBombTarget();
+    for (let r = row - 1; r <= row + 1; r++)
+      for (let c = col - 1; c <= col + 1; c++)
+        if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) cells[r][c].classList.add("bomb-target");
+  }
+
+  function detonate(row, col) {
+    if (animating) return;
+    bombArmed = false;
+    bombCount--;
+    saveMeta();
+    clearBombTarget();
+    updateBombUI();
+    playBoom();
+
+    const hit = [];
+    for (let r = row - 1; r <= row + 1; r++)
+      for (let c = col - 1; c <= col + 1; c++)
+        if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c]) {
+          hit.push([r, c]);
+          cells[r][c].classList.add("exploding");
+        }
+
+    const center = cells[row][col];
+    const wave = document.createElement("div");
+    wave.className = "shockwave";
+    wave.style.left = center.offsetLeft + center.offsetWidth / 2 + "px";
+    wave.style.top = center.offsetTop + center.offsetHeight / 2 + "px";
+    boardEl.appendChild(wave);
+    setTimeout(() => wave.remove(), 550);
+
+    animating = true;
+    setTimeout(() => {
+      for (const [r, c] of hit) {
+        if (stars[r][c]) flyStarFrom(cells[r][c]);
+        board[r][c] = null;
+        stars[r][c] = false;
+      }
+      if (hit.length) addScore(hit.length);
+      animating = false;
+      renderBoard();
+      renderTray(); // freed space may make stuck shapes placeable again
+    }, 430);
+  }
+
+  bombBtn.addEventListener("click", () => {
+    if (over) return;
+    ensureAudio();
+    if (bombArmed) {
+      bombArmed = false;
+      clearBombTarget();
+    } else if (bombCount > 0) {
+      bombArmed = true;
+    } else if (starCount >= BOMB_COST) {
+      starCount -= BOMB_COST;
+      bombCount++;
+      saveMeta();
+      bombArmed = true; // bought and ready to aim
+    }
+    updateBombUI();
+  });
+
+  boardEl.addEventListener("pointermove", (e) => {
+    if (!bombArmed) return;
+    const t = cellAtPoint(e);
+    if (t) showBombTarget(t.row, t.col);
+    else clearBombTarget();
+  });
+
+  boardEl.addEventListener("pointerleave", () => {
+    if (bombArmed) clearBombTarget();
+  });
+
+  boardEl.addEventListener("pointerdown", (e) => {
+    if (!bombArmed || over) return;
+    e.preventDefault();
+    const t = cellAtPoint(e);
+    if (t) detonate(t.row, t.col);
+  });
+
   /* ---------- drag & drop ---------- */
 
   let drag = null; // { shapeIndex, floater, offsetX, offsetY, slot }
@@ -984,6 +1325,11 @@
 
   function startDrag(e, shapeIndex, slot) {
     if (animating || drag || over) return;
+    if (bombArmed) {
+      bombArmed = false;
+      clearBombTarget();
+      updateBombUI();
+    }
     const shape = currentShapes[shapeIndex];
     if (!shape) return;
     e.preventDefault();
@@ -1111,9 +1457,12 @@
 
   // Minimal hook for automated tests; unused during normal play.
   window.__eb = {
-    setState(b, deals) { board = b; dealCount = deals; renderBoard(); },
+    setState(b, deals, st) { board = b; dealCount = deals; if (st) stars = st; renderBoard(); },
     redeal() { dealShapes(); renderTray(); },
     shapes: () => currentShapes,
+    spawnStar,
+    addStars(n) { starCount += n; saveMeta(); updateBombUI(); },
+    meta: () => ({ starCount, bombCount, bombArmed }),
   };
 
   restartBtn.addEventListener("click", newGame);
