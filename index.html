@@ -73,6 +73,20 @@
 
   .score-box .value.bump { animation: bump .3s ease; }
 
+  #music-btn {
+    font: inherit;
+    font-size: 20px;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 12px;
+    padding: 6px 14px;
+    cursor: pointer;
+    line-height: 1;
+    align-self: stretch;
+  }
+
+  #music-btn.off { opacity: .4; filter: grayscale(1); }
+
   @keyframes bump {
     50% { transform: scale(1.3); color: #ffe14d; }
   }
@@ -383,6 +397,7 @@
     <div class="label">Best</div>
     <div class="value" id="best">0</div>
   </div>
+  <button id="music-btn" title="Toggle music">🎵</button>
 </div>
 
 <div id="timer-wrap">
@@ -464,6 +479,7 @@
       if (AC) audioCtx = new AC();
     }
     if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    startMusic();
   }
 
   // Lego-style snap: a sharp filtered-noise click plus a low "seat" thump.
@@ -518,6 +534,124 @@
       osc.start(t);
       osc.stop(t + 0.5);
     });
+  }
+
+  /* ---------- background music ---------- */
+  // A looping "elemental ninja" track, synthesized so the game stays a
+  // single file: koto-style plucks on the hirajoshi scale over a taiko
+  // pulse and a low drone. Scheduled with the standard look-ahead pattern.
+
+  let musicOn = localStorage.getItem("elementblocks-music") !== "off";
+  let musicGain = null;
+  let musicTimer = null;
+  let musicStep = 0;
+  let nextNoteTime = 0;
+
+  const STEP = 0.165; // 16th notes at ~91 BPM
+  const LOOP = 64;    // 4 bars
+  // Hirajoshi scale on A, two octaves.
+  const SCALE = [220, 246.94, 261.63, 329.63, 349.23, 440, 493.88, 523.25, 659.26, 698.46];
+  const _ = null;
+  const MELODY = [
+    5, _, _, 7,  _, 5, _, 4,  3, _, _, _,  0, _, 3, 4,
+    5, _, 7, _,  8, _, 7, 5,  4, _, 3, _,  0, _, _, _,
+    3, _, 4, 5,  _, 5, _, 7,  5, _, 4, 3,  1, _, 0, _,
+    0, _, _, 3,  4, _, 3, 1,  0, _, _, _,  _, _, _, _,
+  ];
+  const BASS = [110, 110, 87.31, 82.41]; // A2 A2 F2 E2, one per bar
+
+  function pluck(freq, t, vol) {
+    const o1 = audioCtx.createOscillator();
+    o1.type = "triangle";
+    o1.frequency.value = freq;
+    const o2 = audioCtx.createOscillator();
+    o2.type = "sine";
+    o2.frequency.value = freq * 2.01; // slight detune shimmer
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    o1.connect(g);
+    o2.connect(g);
+    g.connect(musicGain);
+    o1.start(t); o1.stop(t + 0.45);
+    o2.start(t); o2.stop(t + 0.45);
+  }
+
+  function taiko(t, vol) {
+    const o = audioCtx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(95, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    o.connect(g).connect(musicGain);
+    o.start(t); o.stop(t + 0.18);
+  }
+
+  function tick(t) {
+    const len = Math.floor(audioCtx.sampleRate * 0.02);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 6000;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.06, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    src.connect(hp).connect(g).connect(musicGain);
+    src.start(t);
+  }
+
+  function scheduleStep(step, t) {
+    const note = MELODY[step];
+    if (note !== null) pluck(SCALE[note], t, 0.16);
+    const beat = step % 16;
+    if (beat === 0) taiko(t, 0.5);
+    else if (beat === 8) taiko(t, 0.3);
+    if (beat % 4 === 2) tick(t);
+    if (beat === 0) {
+      // bar drone
+      const bass = audioCtx.createOscillator();
+      bass.type = "sine";
+      bass.frequency.value = BASS[(step / 16) | 0];
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.09, t + 0.1);
+      g.gain.setValueAtTime(0.09, t + STEP * 14);
+      g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 16);
+      bass.connect(g).connect(musicGain);
+      bass.start(t);
+      bass.stop(t + STEP * 16 + 0.05);
+    }
+  }
+
+  function startMusic() {
+    if (!musicOn || !audioCtx || musicTimer) return;
+    if (!musicGain) {
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0.5; // keep the music under the sound effects
+      musicGain.connect(audioCtx.destination);
+    }
+    musicStep = 0;
+    nextNoteTime = audioCtx.currentTime + 0.1;
+    musicTimer = setInterval(() => {
+      if (nextNoteTime < audioCtx.currentTime) nextNoteTime = audioCtx.currentTime + 0.05;
+      while (nextNoteTime < audioCtx.currentTime + 0.25) {
+        scheduleStep(musicStep, nextNoteTime);
+        musicStep = (musicStep + 1) % LOOP;
+        nextNoteTime += STEP;
+      }
+    }, 60);
+  }
+
+  function stopMusic() {
+    clearInterval(musicTimer);
+    musicTimer = null;
   }
 
   /* ---------- turn timer ---------- */
@@ -924,6 +1058,19 @@
   };
 
   restartBtn.addEventListener("click", newGame);
+
+  const musicBtn = document.getElementById("music-btn");
+  musicBtn.classList.toggle("off", !musicOn);
+  musicBtn.addEventListener("click", () => {
+    musicOn = !musicOn;
+    musicBtn.classList.toggle("off", !musicOn);
+    localStorage.setItem("elementblocks-music", musicOn ? "on" : "off");
+    if (musicOn) {
+      ensureAudio();
+    } else {
+      stopMusic();
+    }
+  });
 
   newGame();
 })();
