@@ -19,6 +19,7 @@ Open `index.html` in any modern browser — no install or build step needed.
 Blocks come in five elements — fire, water, earth, air, and lightning — each with
 its own glow.
 
-A synthesized ninja-style soundtrack loops in the background (it starts on your
-first move, since browsers require an interaction before playing audio). Use the
+A synthesized high-energy chiptune soundtrack loops in the background — 135 BPM
+EDM drums, punchy synth bass, and a bright 16-bit lead (it starts on your first
+move, since browsers require an interaction before playing audio). Use the
 🎵 button to toggle it; your choice is remembered.
