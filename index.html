@@ -693,15 +693,10 @@
   const BOMB_COST = 15;
   const STAR_INTERVAL = 20000; // a star lands on a random block every 20 seconds
   let stars; // 8x8 booleans alongside `board`
-  let starCount = Number(localStorage.getItem("elementblocks-stars")) || 0;
-  let bombCount = Number(localStorage.getItem("elementblocks-bombs")) || 0;
+  let starCount = 0;
+  let bombCount = 0;
   let bombArmed = false;
   let starSpawner = null;
-
-  function saveMeta() {
-    localStorage.setItem("elementblocks-stars", starCount);
-    localStorage.setItem("elementblocks-bombs", bombCount);
-  }
 
   function updateBombUI() {
     bombBtn.classList.toggle("armed", bombArmed);
@@ -745,7 +740,6 @@
     setTimeout(() => {
       fly.remove();
       starCount++;
-      saveMeta();
       updateBombUI();
       addScore(STAR_POINTS);
       bombBtn.classList.remove("bump");
@@ -1083,6 +1077,8 @@
     dealCount = 0;
     over = false;
     combo = 0;
+    starCount = 0;
+    bombCount = 0;
     bombArmed = false;
     clearInterval(starSpawner);
     starSpawner = setInterval(spawnStar, STAR_INTERVAL);
@@ -1339,7 +1335,6 @@
     if (animating) return;
     bombArmed = false;
     bombCount--;
-    saveMeta();
     clearBombTarget();
     updateBombUI();
     playBoom();
@@ -1385,7 +1380,6 @@
     } else if (starCount >= BOMB_COST) {
       starCount -= BOMB_COST;
       bombCount++;
-      saveMeta();
       bombArmed = true; // bought and ready to aim
     }
     updateBombUI();
@@ -1559,7 +1553,7 @@
     redeal() { dealShapes(); renderTray(); },
     shapes: () => currentShapes,
     spawnStar,
-    addStars(n) { starCount += n; saveMeta(); updateBombUI(); },
+    addStars(n) { starCount += n; updateBombUI(); },
     meta: () => ({ starCount, bombCount, bombArmed }),
   };
 
