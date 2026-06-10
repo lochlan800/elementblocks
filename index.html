@@ -577,6 +577,11 @@
   const SIZE = 8;
   const ELEMENTS = ["fire", "water", "earth", "air", "lightning"];
 
+  /* scoring */
+  const PLACE_POINTS = 20;                              // per shape placed
+  const LINE_POINTS = [0, 180, 375, 580, 800, 1035, 1285]; // by lines cleared at once
+  const STAR_POINTS = 12;                               // per star collected
+
   // Shape matrices: 1 = block, 0 = empty.
   const SHAPES = [
     [[1]],
@@ -680,6 +685,7 @@
       starCount++;
       saveMeta();
       updateBombUI();
+      addScore(STAR_POINTS);
       bombBtn.classList.remove("bump");
       void bombBtn.offsetWidth;
       bombBtn.classList.add("bump");
@@ -1130,6 +1136,7 @@
   function addScore(points) {
     score += points;
     scoreEl.textContent = score;
+    if (over) finalScoreEl.textContent = score; // stars can land after game over
     scoreEl.classList.remove("bump");
     void scoreEl.offsetWidth;
     scoreEl.classList.add("bump");
@@ -1153,19 +1160,17 @@
   function place(shapeIndex, row, col) {
     const shape = currentShapes[shapeIndex];
     const placedCells = [];
-    let blockCount = 0;
     for (let r = 0; r < shape.matrix.length; r++) {
       for (let c = 0; c < shape.matrix[r].length; c++) {
         if (shape.matrix[r][c]) {
           board[row + r][col + c] = shape.element;
           placedCells.push([row + r, col + c]);
-          blockCount++;
         }
       }
     }
     currentShapes[shapeIndex] = null;
     playSnap();
-    addScore(blockCount);
+    addScore(PLACE_POINTS);
     renderBoard(placedCells);
 
     const fullRows = [], fullCols = [];
@@ -1175,7 +1180,7 @@
 
     if (lines > 0) {
       animating = true;
-      const bonus = 10 * lines * lines;
+      const bonus = LINE_POINTS[Math.min(lines, LINE_POINTS.length - 1)];
       const rect = boardEl.getBoundingClientRect();
       spawnScorePop(bonus, rect.left + rect.width / 2, rect.top + rect.height / 2);
       playClear(lines);

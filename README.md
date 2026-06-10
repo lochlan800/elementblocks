@@ -8,8 +8,9 @@ Open `index.html` in any modern browser — no install or build step needed.
 
 - Drag shapes from the tray onto the **8×8 grid** (mouse or touch).
 - A green preview shows where the shape will land; red means it doesn't fit.
-- Fill an entire **row or column** to clear it and earn bonus points
-  (clearing multiple lines at once multiplies the bonus).
+- Placing a shape scores **20 points**. Fill an entire **row or column** to
+  clear it: 1 line scores **180**, 2 at once **375**, 3 at once **580**, and
+  4 at once **800**. Collected stars are worth **12 points** each.
 - You're dealt **3 shapes** at a time; a new set arrives once all three are placed.
 - You have **15 seconds** to place all 3 shapes — the timer resets when a new
   set arrives, and the game ends if it runs out.
