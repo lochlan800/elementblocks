@@ -457,6 +457,14 @@
     animation: floatUp 1s ease forwards;
   }
 
+  .combo-tag {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: #7dff8a;
+    text-shadow: 0 0 10px rgba(125, 255, 138, .9), 0 2px 4px rgba(0, 0, 0, .6);
+    text-align: center;
+  }
+
   @keyframes floatUp {
     0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
     20% { opacity: 1; transform: translate(-50%, -10px) scale(1.1); }
@@ -625,6 +633,7 @@
   const bombLabel = document.getElementById("bomb-label");
 
   let board, currentShapes, score, best, animating, dealCount, over;
+  let combo = 0; // consecutive placements that each cleared at least one line
 
   /* ---------- stars & bombs ---------- */
 
@@ -1020,6 +1029,7 @@
     animating = false;
     dealCount = 0;
     over = false;
+    combo = 0;
     bombArmed = false;
     clearInterval(starSpawner);
     starSpawner = setInterval(spawnStar, STAR_INTERVAL);
@@ -1147,10 +1157,16 @@
     }
   }
 
-  function spawnScorePop(points, x, y) {
+  function spawnScorePop(points, x, y, comboLevel) {
     const pop = document.createElement("div");
     pop.className = "score-pop";
     pop.textContent = "+" + points;
+    if (comboLevel >= 2) {
+      const tag = document.createElement("div");
+      tag.className = "combo-tag";
+      tag.textContent = "COMBO ×" + comboLevel;
+      pop.appendChild(tag);
+    }
     pop.style.left = x + "px";
     pop.style.top = y + "px";
     document.body.appendChild(pop);
@@ -1180,9 +1196,10 @@
 
     if (lines > 0) {
       animating = true;
-      const bonus = LINE_POINTS[Math.min(lines, LINE_POINTS.length - 1)];
+      combo++;
+      const bonus = LINE_POINTS[Math.min(lines, LINE_POINTS.length - 1)] * combo;
       const rect = boardEl.getBoundingClientRect();
-      spawnScorePop(bonus, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      spawnScorePop(bonus, rect.left + rect.width / 2, rect.top + rect.height / 2, combo);
       playClear(lines);
       addScore(bonus);
       for (const r of fullRows) for (let c = 0; c < SIZE; c++) cells[r][c].classList.add("clearing");
@@ -1200,6 +1217,7 @@
         finishTurn();
       }, 340);
     } else {
+      combo = 0; // streak broken: this placement cleared nothing
       finishTurn();
     }
   }
