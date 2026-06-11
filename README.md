@@ -32,6 +32,10 @@ the turn timer only starts once they're dismissed.
 Blocks come in five elements — fire, water, earth, air, and lightning — each with
 its own glow.
 
+On slow devices (or throttled in-app browsers like WhatsApp's) the game
+automatically switches to a flatter, faster look. Add `?lite` to the URL to
+force it, or `?full` to keep the rich visuals.
+
 ## Stars and bombs
 
 - Every 15 seconds, two ⭐ land on random blocks on the grid.

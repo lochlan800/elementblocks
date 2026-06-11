@@ -646,6 +646,23 @@
 
   #tut-next:active, #tut-skip:active { transform: scale(.95); }
 
+  /* ---- lite mode for weak devices / in-app browsers ----
+     Activated automatically when a low frame rate is detected, or forced
+     with ?lite (and disabled with ?full). Strips the costly visuals. */
+  body.lite h1 { filter: none; }
+  body.lite #board { box-shadow: none; }
+  body.lite .cell::before,
+  body.lite [class*="el-"]::before { display: none; } /* crack textures */
+  body.lite .cell { box-shadow: none; }
+  body.lite [class*="el-"] { box-shadow: inset 0 1px 2px rgba(255, 255, 255, .35); }
+  body.lite [class*="el-"]::after { filter: none; }
+  body.lite .star { filter: none; animation: starPop .35s ease; }
+  body.lite .star-fly { filter: none; }
+  body.lite .cell.preview-line { animation: none; }
+  body.lite #bomb-btn.ready { animation: none; }
+  body.lite #tutorial, body.lite #overlay { backdrop-filter: none; }
+  body.lite .shockwave { box-shadow: none; }
+
   /* ---- game over ---- */
   #overlay {
     position: fixed;
@@ -1684,8 +1701,14 @@
     drag.floater.style.transform =
       `translate3d(${e.clientX - drag.offsetX}px, ${e.clientY - drag.offsetY}px, 0)`;
 
-    clearPreview();
+    // Only repaint the grid preview when the target cell actually changes —
+    // pointermove can fire 60-120 times a second.
     const target = dropTarget(e);
+    const key = target ? target.row + "," + target.col : "none";
+    if (key === drag.previewKey) return;
+    drag.previewKey = key;
+
+    clearPreview();
     if (!target) return;
     const shape = currentShapes[drag.shapeIndex];
     const ok = canPlace(shape.matrix, target.row, target.col);
@@ -1805,6 +1828,25 @@
   renderTutCard();
   tutEl.classList.add("show");
   stopTimer(); // hold the game until the player starts
+
+  /* ---------- lite mode for weak devices ---------- */
+  // Measure the frame rate for a couple of seconds; if the device can't
+  // hold a smooth rate, drop the expensive visuals. ?lite forces it on,
+  // ?full forces it off.
+  (function detectLiteMode() {
+    const params = new URLSearchParams(location.search);
+    if (params.has("full")) return;
+    if (params.has("lite")) { document.body.classList.add("lite"); return; }
+    let frames = 0;
+    const t0 = performance.now();
+    function tick() {
+      frames++;
+      const dt = performance.now() - t0;
+      if (dt < 2200) requestAnimationFrame(tick);
+      else if (frames / (dt / 1000) < 45) document.body.classList.add("lite");
+    }
+    requestAnimationFrame(tick);
+  })();
 })();
 </script>
 </body>
