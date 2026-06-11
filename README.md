@@ -5,6 +5,8 @@ A Block Blast–style puzzle game with an elemental twist, in a single HTML file
 ## How to play
 
 Open `index.html` in any modern browser — no install or build step needed.
+A quick set of intro cards explains the points system (Skip jumps straight in);
+the turn timer only starts once they're dismissed.
 
 - Drag shapes from the tray onto the **8×8 grid** (mouse or touch).
 - A green preview shows where the shape will land; red means it doesn't fit.

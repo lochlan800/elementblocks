@@ -551,6 +551,101 @@
     100% { opacity: 0; transform: translate(-50%, -60px) scale(1); }
   }
 
+  /* ---- tutorial cards ---- */
+  #tutorial {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 11, 22, .85);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 110;
+  }
+
+  #tutorial.show { display: flex; }
+
+  .tut-panel {
+    width: min(86vw, 360px);
+    padding: 28px 28px 22px;
+  }
+
+  #tut-icon {
+    font-size: 52px;
+    line-height: 1;
+    margin-bottom: 14px;
+    animation: cardIn .3s ease;
+  }
+
+  #tut-text {
+    font-size: 17px;
+    line-height: 1.45;
+    min-height: 4.4em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: cardIn .3s ease;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  #tut-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 18px 0 20px;
+  }
+
+  .tut-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .2);
+    transition: background .2s ease, transform .2s ease;
+  }
+
+  .tut-dot.active {
+    background: #ffe14d;
+    transform: scale(1.25);
+  }
+
+  .tut-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  #tut-skip {
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: #8fa0c7;
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 10px;
+    padding: 10px 26px;
+    cursor: pointer;
+  }
+
+  #tut-next {
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #0b1020;
+    background: linear-gradient(135deg, #ffb347, #ff5e2e);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(255, 94, 46, .4);
+  }
+
+  #tut-next:active, #tut-skip:active { transform: scale(.95); }
+
   /* ---- game over ---- */
   #overlay {
     position: fixed;
@@ -654,6 +749,18 @@
 
 <div id="next-label">Next</div>
 <div id="next-tray"></div>
+
+<div id="tutorial">
+  <div class="panel tut-panel">
+    <div id="tut-icon">🧩</div>
+    <div id="tut-text"></div>
+    <div id="tut-dots"></div>
+    <div class="tut-buttons">
+      <button id="tut-skip">Skip</button>
+      <button id="tut-next">Next</button>
+    </div>
+  </div>
+</div>
 
 <div id="overlay">
   <div class="panel">
@@ -1643,6 +1750,61 @@
   document.addEventListener("pointerdown", ensureAudio, { once: true });
 
   newGame();
+
+  /* ---------- intro cards explaining the points system ---------- */
+
+  const TUT_CARDS = [
+    { icon: "🧩", text: "Place a shape on the grid to score 20 points." },
+    { icon: "💥", text: "Fill a whole row or column to clear it for 180 points — up to 800 for four lines at once." },
+    { icon: "🔥", text: "A cleared line made entirely of one element pays triple." },
+    { icon: "⚡", text: "Clear lines on back-to-back placements to multiply the bonus ×2, ×3 and beyond." },
+    { icon: "⭐", text: "Stars worth 12 points land on your blocks — clear their lines to collect them." },
+    { icon: "💣", text: "Spend 15 stars on a bomb that blasts a 3×3 area of the grid." },
+    { icon: "⏱️", text: "Place all 3 shapes before the timer runs out — it tightens as the difficulty gauge climbs." },
+  ];
+
+  const tutEl = document.getElementById("tutorial");
+  const tutIconEl = document.getElementById("tut-icon");
+  const tutTextEl = document.getElementById("tut-text");
+  const tutDotsEl = document.getElementById("tut-dots");
+  const tutNextBtn = document.getElementById("tut-next");
+  const tutSkipBtn = document.getElementById("tut-skip");
+  let tutIndex = 0;
+
+  TUT_CARDS.forEach(() => {
+    const dot = document.createElement("div");
+    dot.className = "tut-dot";
+    tutDotsEl.appendChild(dot);
+  });
+
+  function renderTutCard() {
+    const card = TUT_CARDS[tutIndex];
+    tutIconEl.textContent = card.icon;
+    tutTextEl.textContent = card.text;
+    // retrigger the slide-in animation
+    for (const el of [tutIconEl, tutTextEl]) {
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.animation = "";
+    }
+    [...tutDotsEl.children].forEach((d, i) => d.classList.toggle("active", i === tutIndex));
+    tutNextBtn.textContent = tutIndex === TUT_CARDS.length - 1 ? "Play!" : "Next";
+  }
+
+  function closeTutorial() {
+    tutEl.classList.remove("show");
+    startTimer(); // the turn clock only starts once the cards are gone
+  }
+
+  tutNextBtn.addEventListener("click", () => {
+    if (tutIndex === TUT_CARDS.length - 1) closeTutorial();
+    else { tutIndex++; renderTutCard(); }
+  });
+  tutSkipBtn.addEventListener("click", closeTutorial);
+
+  renderTutCard();
+  tutEl.classList.add("show");
+  stopTimer(); // hold the game until the player starts
 })();
 </script>
 </body>
