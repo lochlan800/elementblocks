@@ -17,6 +17,8 @@ Open `index.html` in any modern browser — no install or build step needed.
 - **Pure element line**: clear a line made entirely of one element and the
   line bonus is **tripled** (stacks with the combo streak).
 - You're dealt **3 shapes** at a time; a new set arrives once all three are placed.
+- A dimmed **Next** row under the tray previews the upcoming 3 shapes so you
+  can plan ahead.
 - **Difficulty climbs with every set** — watch the gauge next to the bomb
   button fill toward red: shapes get bigger, helpful deals get rarer, and the
   turn timer shrinks from 15 seconds down to 9.

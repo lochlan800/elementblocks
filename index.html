@@ -454,6 +454,44 @@
 
   .mini-cell.blank { visibility: hidden; }
 
+  /* ---- ghost preview of the next set ---- */
+  #next-label {
+    margin-top: 14px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8fa0c7;
+    opacity: .7;
+  }
+
+  #next-tray {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 4px;
+    opacity: .4;
+    filter: saturate(.7);
+    pointer-events: none;
+  }
+
+  #next-tray .slot {
+    width: calc(var(--cell) * 1.7);
+    height: calc(var(--cell) * 1.7);
+    border-style: dotted;
+    cursor: default;
+  }
+
+  #next-tray .mini-cell {
+    width: calc(var(--cell) * .28);
+    height: calc(var(--cell) * .28);
+    border-radius: 3px;
+  }
+
+  #next-tray .mini-cell[class*="el-"]::after {
+    font-size: calc(var(--cell) * .17);
+  }
+
   /* ---- floating drag shape ---- */
   #floater {
     position: fixed;
@@ -606,6 +644,9 @@
 
 <div id="tray"></div>
 
+<div id="next-label">Next</div>
+<div id="next-tray"></div>
+
 <div id="overlay">
   <div class="panel">
     <h2 id="over-title">Game Over</h2>
@@ -656,6 +697,7 @@
 
   const boardEl = document.getElementById("board");
   const trayEl = document.getElementById("tray");
+  const nextTrayEl = document.getElementById("next-tray");
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
   const overlayEl = document.getElementById("overlay");
@@ -670,6 +712,7 @@
   const bombLabel = document.getElementById("bomb-label");
 
   let board, currentShapes, score, best, animating, dealCount, over;
+  let nextShapes = null; // the upcoming set, shown as a ghost preview
   let combo = 0; // consecutive placements that each cleared at least one line
 
   /* ---------- difficulty ---------- */
@@ -1077,6 +1120,7 @@
     dealCount = 0;
     over = false;
     combo = 0;
+    nextShapes = null;
     starCount = 0;
     bombCount = 0;
     bombArmed = false;
@@ -1112,31 +1156,40 @@
     return false;
   }
 
-  function dealShapes() {
-    dealCount++;
-    updateDifficultyUI();
-    resetTimer();
-    currentShapes = Array.from({ length: 3 }, randomShape);
+  function generateSet() {
+    const set = Array.from({ length: 3 }, randomShape);
 
     // Board-aware dealing: after the first 3 deals, bias the hand so that a
     // line completion is on offer. The chance of that help fades as the
     // difficulty climbs, so line opportunities become less obvious over time.
-    if (dealCount <= 3) return;
+    // (Sets are generated one deal ahead for the Next preview, so the bias
+    // works from the board as it looks now.)
+    if (dealCount <= 3) return set;
     const helpChance = 0.95 - 0.7 * difficulty();
-    if (Math.random() > helpChance) return;
-    if (currentShapes.some((s) => shapeCompletesLine(s.matrix))) return;
+    if (Math.random() > helpChance) return set;
+    if (set.some((s) => shapeCompletesLine(s.matrix))) return set;
     const candidates = SHAPES.filter(shapeCompletesLine);
-    if (!candidates.length) return;
+    if (!candidates.length) return set;
     // Early on hand over the smallest (most obvious) gap-filler; later pick
     // any qualifying shape so the opportunity takes more spotting.
     candidates.sort((a, b) => a.flat().filter(Boolean).length - b.flat().filter(Boolean).length);
     const pick = dealCount < 8
       ? candidates[0]
       : candidates[Math.floor(Math.random() * candidates.length)];
-    currentShapes[Math.floor(Math.random() * 3)] = {
+    set[Math.floor(Math.random() * 3)] = {
       matrix: pick,
       element: ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)],
     };
+    return set;
+  }
+
+  function dealShapes() {
+    dealCount++;
+    updateDifficultyUI();
+    resetTimer();
+    currentShapes = nextShapes || generateSet();
+    nextShapes = generateSet();
+    renderNextTray();
   }
 
   function renderBoard(placedCells = []) {
@@ -1153,6 +1206,20 @@
     }
   }
 
+  function buildMiniShape(shape) {
+    const mini = document.createElement("div");
+    mini.className = "mini-shape";
+    mini.style.gridTemplateColumns = `repeat(${shape.matrix[0].length}, auto)`;
+    for (const row of shape.matrix) {
+      for (const v of row) {
+        const mc = document.createElement("div");
+        mc.className = "mini-cell" + (v ? " filled el-" + shape.element : " blank");
+        mini.appendChild(mc);
+      }
+    }
+    return mini;
+  }
+
   function renderTray() {
     trayEl.innerHTML = "";
     currentShapes.forEach((shape, i) => {
@@ -1162,20 +1229,20 @@
         slot.classList.add("empty");
       } else {
         if (!shapeFitsSomewhere(shape)) slot.classList.add("unplaceable");
-        const mini = document.createElement("div");
-        mini.className = "mini-shape";
-        mini.style.gridTemplateColumns = `repeat(${shape.matrix[0].length}, auto)`;
-        for (const row of shape.matrix) {
-          for (const v of row) {
-            const mc = document.createElement("div");
-            mc.className = "mini-cell" + (v ? " filled el-" + shape.element : " blank");
-            mini.appendChild(mc);
-          }
-        }
-        slot.appendChild(mini);
+        slot.appendChild(buildMiniShape(shape));
         slot.addEventListener("pointerdown", (e) => startDrag(e, i, slot));
       }
       trayEl.appendChild(slot);
+    });
+  }
+
+  function renderNextTray() {
+    nextTrayEl.innerHTML = "";
+    (nextShapes || []).forEach((shape) => {
+      const slot = document.createElement("div");
+      slot.className = "slot";
+      slot.appendChild(buildMiniShape(shape));
+      nextTrayEl.appendChild(slot);
     });
   }
 
@@ -1552,6 +1619,7 @@
     setState(b, deals, st) { board = b; dealCount = deals; if (st) stars = st; renderBoard(); },
     redeal() { dealShapes(); renderTray(); },
     shapes: () => currentShapes,
+    next: () => nextShapes,
     spawnStar,
     addStars(n) { starCount += n; updateBombUI(); },
     meta: () => ({ starCount, bombCount, bombArmed }),
