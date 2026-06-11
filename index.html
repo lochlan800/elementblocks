@@ -734,7 +734,8 @@
   /* ---------- stars & bombs ---------- */
 
   const BOMB_COST = 15;
-  const STAR_INTERVAL = 20000; // a star lands on a random block every 20 seconds
+  const STAR_INTERVAL = 15000; // stars land on random blocks every 15 seconds
+  const STARS_PER_SPAWN = 2;
   let stars; // 8x8 booleans alongside `board`
   let starCount = 0;
   let bombCount = 0;
@@ -761,8 +762,10 @@
       for (let c = 0; c < SIZE; c++)
         if (board[r][c] && !stars[r][c]) open.push([r, c]);
     if (!open.length) return;
-    const [r, c] = open[Math.floor(Math.random() * open.length)];
-    stars[r][c] = true;
+    for (let n = 0; n < STARS_PER_SPAWN && open.length; n++) {
+      const [picked] = open.splice(Math.floor(Math.random() * open.length), 1);
+      stars[picked[0]][picked[1]] = true;
+    }
     renderBoard();
   }
 
