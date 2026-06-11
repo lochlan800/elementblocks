@@ -144,6 +144,7 @@
 
   #bomb-btn.ready {
     border-color: rgba(255, 225, 77, .8);
+    box-shadow: 0 0 12px rgba(255, 225, 77, .55);
     animation: readyPulse .9s ease-in-out infinite alternate;
   }
 
@@ -159,8 +160,8 @@
   #bomb-btn.bump { animation: bump .3s ease; }
 
   @keyframes readyPulse {
-    from { box-shadow: 0 0 5px rgba(255, 225, 77, .3); }
-    to { box-shadow: 0 0 16px rgba(255, 225, 77, .75); }
+    from { transform: scale(1); }
+    to { transform: scale(1.07); }
   }
 
   /* ---- stars on blocks ---- */
@@ -177,6 +178,7 @@
     line-height: 1;
     z-index: 2;
     pointer-events: none;
+    filter: drop-shadow(0 0 5px rgba(255, 225, 77, .9));
     animation: starPop .35s ease, twinkle 1.1s ease-in-out .35s infinite alternate;
   }
 
@@ -187,8 +189,8 @@
   }
 
   @keyframes twinkle {
-    from { filter: drop-shadow(0 0 2px rgba(255, 225, 77, .5)); }
-    to { filter: drop-shadow(0 0 7px rgba(255, 225, 77, 1)); }
+    from { opacity: .65; }
+    to { opacity: 1; }
   }
 
   .star-fly {
@@ -196,7 +198,8 @@
     z-index: 80;
     font-size: 24px;
     transform: translate(-50%, -50%) scale(1.3);
-    transition: left .6s ease-in, top .6s ease-in, transform .6s ease-in;
+    transition: transform .6s ease-in;
+    will-change: transform;
     pointer-events: none;
     filter: drop-shadow(0 0 6px rgba(255, 225, 77, .9));
   }
@@ -261,7 +264,9 @@
     width: 100%;
     border-radius: 6px;
     background: linear-gradient(90deg, #4dc3ff, #7dff8a);
-    transition: width .1s linear;
+    transform-origin: left;
+    transition: transform .1s linear;
+    will-change: transform;
   }
 
   #timer-text {
@@ -408,8 +413,8 @@
   }
 
   @keyframes linePulse {
-    from { filter: brightness(1.25); }
-    to { filter: brightness(1.65); }
+    from { transform: scale(.96); }
+    to { transform: scale(1.05); }
   }
 
   /* ---- tray ---- */
@@ -495,6 +500,9 @@
   /* ---- floating drag shape ---- */
   #floater {
     position: fixed;
+    left: 0;
+    top: 0;
+    will-change: transform;
     display: grid;
     gap: var(--gap);
     pointer-events: none;
@@ -780,9 +788,9 @@
     document.body.appendChild(fly);
     void fly.offsetWidth;
     const to = bombBtn.getBoundingClientRect();
-    fly.style.left = to.left + to.width / 2 + "px";
-    fly.style.top = to.top + to.height / 2 + "px";
-    fly.style.transform = "translate(-50%, -50%) scale(.4)";
+    const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+    const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+    fly.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.4)`;
     setTimeout(() => {
       fly.remove();
       starCount++;
@@ -1066,7 +1074,7 @@
   let lastTick = 0;
 
   function updateTimerUI() {
-    timerFillEl.style.width = (timeLeft / turnTime()) * 100 + "%";
+    timerFillEl.style.transform = "scaleX(" + timeLeft / turnTime() + ")";
     timerTextEl.textContent = Math.ceil(timeLeft);
     timerWrapEl.classList.toggle("low", timeLeft <= 3);
   }
@@ -1566,8 +1574,8 @@
 
   function moveDrag(e) {
     if (!drag) return;
-    drag.floater.style.left = e.clientX - drag.offsetX + "px";
-    drag.floater.style.top = e.clientY - drag.offsetY + "px";
+    drag.floater.style.transform =
+      `translate3d(${e.clientX - drag.offsetX}px, ${e.clientY - drag.offsetY}px, 0)`;
 
     clearPreview();
     const target = dropTarget(e);
