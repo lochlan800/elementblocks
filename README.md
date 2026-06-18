@@ -1,49 +1,36 @@
-# Element Blocks
+# Game Hub
 
-A Block Blast–style puzzle game with an elemental twist, in a single HTML file.
+A small games dashboard. Browse games by category, search for one, then play it.
 
-## How to play
+`index.html` is the hub. Open it in any browser (or visit the deployed site) — no
+install or build step needed.
 
-Open `index.html` in any modern browser — no install or build step needed.
-A quick set of intro cards explains the points system (Skip jumps straight in);
-the turn timer only starts once they're dismissed.
+## How it works
 
-- Drag shapes from the tray onto the **8×8 grid** (mouse or touch).
-- A green preview shows where the shape will land; red means it doesn't fit.
-- Placing a shape scores **20 points**. Fill an entire **row or column** to
-  clear it: 1 line scores **180**, 2 at once **375**, 3 at once **580**, and
-  4 at once **800**. Collected stars are worth **12 points** each.
-- **Combo streak**: clear lines on back-to-back placements and the line bonus
-  is multiplied — ×2 on the second clear in a row, ×3 on the third, and so on.
-  A placement that clears nothing resets the streak.
-- **Pure element line**: clear a line made entirely of one element and the
-  line bonus is **tripled** (stacks with the combo streak).
-- You're dealt **3 shapes** at a time; a new set arrives once all three are placed.
-- A dimmed **Next** row under the tray previews the upcoming 3 shapes so you
-  can plan ahead.
-- **Difficulty climbs with every set** — watch the gauge next to the bomb
-  button fill toward red: shapes get bigger, helpful deals get rarer, and the
-  turn timer shrinks from 15 seconds down to 9.
-- You have **15 seconds** to place all 3 shapes (less at higher difficulty) —
-  the timer resets when a new set arrives, and the game ends if it runs out.
-- The game also ends when none of your remaining shapes fit anywhere on the grid.
-- Your best score is saved in the browser.
+- Games are shown as cards grouped by category (Puzzle, Strategy, …).
+- The **search bar** filters games live by name or category — type `chess` and the
+  Chess card comes up.
+- Click a card and a prompt asks **"Do you want to play?"** — **Yes** launches the
+  game full-screen, **No** takes you back to the hub.
+- While playing, **← Back to Games** returns to the hub, or **Open in new tab**
+  pops the game out on its own.
 
-Blocks come in five elements — fire, water, earth, air, and lightning — each with
-its own glow.
+## Games
 
-On slow devices (or throttled in-app browsers like WhatsApp's) the game
-automatically switches to a flatter, faster look. Add `?lite` to the URL to
-force it, or `?full` to keep the rich visuals.
+| Game | Category | Where it lives |
+| --- | --- | --- |
+| **Element Blocks** | Puzzle | `elementblocks.html` in this repo |
+| **Chess** | Strategy | the separate [`Chess-`](https://github.com/lochlan800/Chess-) repo, loaded from its live site |
 
-## Stars and bombs
+### Adding a game
 
-- Every 15 seconds, two ⭐ land on random blocks on the grid.
-- Clear a line containing starred blocks and the stars fly into the 💣 button.
-- Collect **15 stars** to buy a bomb, then click the 💣 button and pick a spot on
-  the grid: everything in a 3×3 blast disappears. Stars and bombs are saved
-  between sessions.
+Edit the `GAMES` array near the top of the `<script>` in `index.html` — each entry
+has a name, category, icon, short description, and a `url` (a file in this repo or
+any web address).
 
-A synthesized high-energy chiptune soundtrack loops in the background — 135 BPM
-EDM drums, punchy synth bass, and a bright 16-bit lead. It starts as soon as you
-first click or touch the page (browsers require an interaction before audio).
+## Element Blocks
+
+A Block Blast–style puzzle: drop elemental shapes on an 8×8 grid, clear full rows
+and columns, build combos and pure-element bonuses, collect stars to buy bombs,
+and survive the shrinking turn timer as the difficulty climbs. See the in-game
+intro cards for the full scoring rules.
