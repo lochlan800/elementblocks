@@ -9,7 +9,7 @@
   html, body { height: 100%; }
   body {
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    background: radial-gradient(ellipse at 50% 0%, #243a52 0%, #121a26 60%, #0a0e16 100%);
+    background: #0a0e16;
     color: #e8ecf7;
     display: flex;
     flex-direction: column;
@@ -46,8 +46,8 @@
 
   #hint {
     position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-    color: #8fa0c7; font-size: 13px; letter-spacing: .5px; pointer-events: none;
-    background: rgba(0,0,0,.35); padding: 6px 14px; border-radius: 999px;
+    color: #2a3a52; font-size: 13px; font-weight: 600; letter-spacing: .5px; pointer-events: none;
+    background: rgba(255,255,255,.6); padding: 6px 14px; border-radius: 999px;
     transition: opacity .4s ease;
   }
 
@@ -102,11 +102,16 @@
 (() => {
   "use strict";
 
-  const WORLD_W = 960, WORLD_H = 600;
-  const GROUND_Y = 552;
-  const STAND_X0 = 600, STAND_X1 = 840, STAND_TOP = 372;
-  const PIVOT = { x: 120, y: 466 };
+  // Head-on view: cannon at bottom-centre fires UP at a brick stack on a
+  // table in the middle distance. Pseudo-3D: cuboid bricks, a legged table,
+  // a foreshortened cannon, depth shading and shadows.
+  const WORLD_W = 640, WORLD_H = 960;
+  const HORIZON = 330;
+  const TABLE_CX = 320, TABLE_TOP = 548, TABLE_HW = 150;
+  const LEG_BOTTOM = 726;
+  const PIVOT = { x: 320, y: 858 };
   const GRAV = 0.5;
+  const DEPTH_X = 13, DEPTH_Y = -11;   // cuboid depth direction (up-right)
 
   const cv = document.getElementById("cv");
   const ctx = cv.getContext("2d");
@@ -122,7 +127,6 @@
   const nextBtn = document.getElementById("next-btn");
 
   let scale = 1, offX = 0, offY = 0, dpr = 1;
-
   function resize() {
     const rect = cv.parentElement.getBoundingClientRect();
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -136,15 +140,18 @@
 
   // ---- game state ----
   let level = 1, score = 0, shots = 0;
-  let bricks = [];      // all bricks (settled + debris)
-  let balls = [];
-  let particles = [];
-  let barrier = null;   // moving steel bar on later levels
+  let bricks = [], balls = [], particles = [];
+  let barrier = null;
   let bombPct = 0, megaCharges = 0;
-  let aimAngle = -0.5;
+  let aimAngle = -Math.PI / 2;
   let levelDone = false;
+  const trees = [];
 
   function settledBricks() { return bricks.filter((b) => b.state === "settled"); }
+
+  for (let i = 0; i < 8; i++) {
+    trees.push({ x: 30 + i * 82 + Math.random() * 24, y: HORIZON - 6 - Math.random() * 14, s: 18 + Math.random() * 22 });
+  }
 
   // ---- level generation ----
   function buildLevel(n) {
@@ -152,33 +159,31 @@
     bombPct = 0; megaCharges = 0; levelDone = false;
     updateBombUI();
 
-    const bw = 58, bh = 28, gap = 2;
-    const cols = Math.min(3 + Math.floor(n / 2), 4);
-    const rows = Math.min(3 + Math.floor((n - 1) / 1), 7);
-    const stackW = cols * bw + (cols - 1) * gap;
-    const startX = (STAND_X0 + STAND_X1) / 2 - stackW / 2;
+    const bw = 54, bh = 30, gap = 2;
+    const cols = Math.min(3 + Math.floor(n / 3), 4);
+    const rows = Math.min(3 + Math.floor((n - 1) / 1), 6);
     const metalChance = Math.min(0.08 + n * 0.08, 0.55);
 
     for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        // pyramid-ish: drop a few bricks on upper rows for variety
-        if (r >= 3 && (c === 0 || c === cols - 1) && Math.random() < 0.4) continue;
+      const rowCols = (r >= 2 && r % 2 === 1) ? cols - 1 : cols; // slight pyramid
+      const stackW = rowCols * bw + (rowCols - 1) * gap;
+      const startX = TABLE_CX - stackW / 2;
+      for (let c = 0; c < rowCols; c++) {
         const metal = n >= 2 && Math.random() < metalChance;
         bricks.push({
           cx: startX + c * (bw + gap) + bw / 2,
-          cy: STAND_TOP - bh / 2 - r * (bh + gap),
+          cy: TABLE_TOP - bh / 2 - r * (bh + gap),
           hw: bw / 2, hh: bh / 2,
           vx: 0, vy: 0, av: 0, angle: 0,
-          metal, hp: metal ? 3 : 1,
-          mass: metal ? 3 : 1,
+          metal, hp: metal ? 3 : 1, mass: metal ? 3 : 1,
           state: "settled",
         });
       }
     }
 
     barrier = n >= 3 ? {
-      x: 430, w: 26, y: 300, h: 120,
-      min: 150, max: 430, dir: 1, speed: 1.6 + n * 0.15,
+      y: 660, h: 22, w: 200, x: 60,
+      min: 20, max: 620, dir: 1, speed: 1.7 + n * 0.18,
     } : null;
 
     levelEl.textContent = n;
@@ -192,52 +197,31 @@
     const len = Math.hypot(dx, dy) || 1;
     aimAngle = Math.atan2(dy, dx);
     const mega = megaCharges > 0;
-    const speed = mega ? 20 : 22;
-    const tipX = PIVOT.x + Math.cos(aimAngle) * 56;
-    const tipY = PIVOT.y + Math.sin(aimAngle) * 56;
-    balls.push({
-      x: tipX, y: tipY,
-      vx: (dx / len) * speed, vy: (dy / len) * speed,
-      r: mega ? 24 : 11, mega, alive: true,
-    });
-    for (let i = 0; i < 8; i++) spawnParticle(tipX, tipY, mega ? "#ff5e2e" : "#ffd24d");
+    const speed = mega ? 19 : 21;
+    const tipX = PIVOT.x + Math.cos(aimAngle) * 60;
+    const tipY = PIVOT.y + Math.sin(aimAngle) * 60;
+    balls.push({ x: tipX, y: tipY, vx: (dx / len) * speed, vy: (dy / len) * speed, r: mega ? 23 : 11, mega, alive: true });
+    for (let i = 0; i < 10; i++) spawnSmoke(tipX, tipY);
 
     shots++; shotsEl.textContent = shots;
-    if (mega) {
-      megaCharges--;
-    } else {
-      bombPct += 25;
-      if (bombPct >= 100) { bombPct = 0; megaCharges = 2; }
-    }
+    if (mega) megaCharges--;
+    else { bombPct += 25; if (bombPct >= 100) { bombPct = 0; megaCharges = 2; } }
     updateBombUI();
     hideHint();
   }
 
   function updateBombUI() {
     bombFill.style.width = bombPct + "%";
-    if (megaCharges > 0) {
-      bombReady.classList.remove("hidden");
-      bombReady.textContent = "★ MEGA ×" + megaCharges;
-    } else {
-      bombReady.classList.add("hidden");
-    }
+    if (megaCharges > 0) { bombReady.classList.remove("hidden"); bombReady.textContent = "★ MEGA ×" + megaCharges; }
+    else bombReady.classList.add("hidden");
   }
 
   let hintHidden = false;
-  function hideHint() {
-    if (hintHidden) return;
-    hintHidden = true;
-    hintEl.style.opacity = "0";
-  }
+  function hideHint() { if (!hintHidden) { hintHidden = true; hintEl.style.opacity = "0"; } }
 
   // ---- particles ----
-  function spawnParticle(x, y, color) {
-    particles.push({
-      x, y,
-      vx: (Math.random() - 0.5) * 6,
-      vy: (Math.random() - 0.5) * 6 - 2,
-      life: 1, color,
-    });
+  function spawnSmoke(x, y) {
+    particles.push({ x, y, vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 3, life: 1, color: "#f3d9a0", smoke: true });
   }
   function explode(x, y, color, count) {
     for (let i = 0; i < count; i++) {
@@ -246,18 +230,15 @@
     }
   }
 
-  // ---- physics helpers ----
+  // ---- physics ----
   function dislodge(b, ix, iy, power) {
     if (b.state !== "settled") {
-      b.vx += ix * power / b.mass;
-      b.vy += iy * power / b.mass;
-      b.av += (Math.random() - 0.5) * 0.25;
-      return;
+      b.vx += ix * power / b.mass; b.vy += iy * power / b.mass; b.av += (Math.random() - 0.5) * 0.25; return;
     }
     b.state = "debris";
-    b.vx += ix * power / b.mass;
-    b.vy += iy * power / b.mass - 2;
-    b.av += (ix * 0.06) + (Math.random() - 0.5) * 0.2;
+    b.vx += ix * power / b.mass + (Math.random() - 0.5) * 4;
+    b.vy += iy * power / b.mass;
+    b.av += ix * 0.05 + (Math.random() - 0.5) * 0.25;
     score += 10; scoreEl.textContent = score;
     explode(b.cx, b.cy, b.metal ? "#cfd6e6" : "#e0843a", 10);
   }
@@ -273,64 +254,41 @@
     const speed = Math.hypot(ball.vx, ball.vy);
     const steps = Math.max(1, Math.ceil(speed / 6));
     for (let s = 0; s < steps && ball.alive; s++) {
-      ball.x += ball.vx / steps;
-      ball.y += ball.vy / steps;
+      ball.x += ball.vx / steps; ball.y += ball.vy / steps;
 
-      // barrier block
-      if (barrier && ball.x + ball.r > barrier.x && ball.x - ball.r < barrier.x + barrier.w &&
-          ball.y + ball.r > barrier.y && ball.y - ball.r < barrier.y + barrier.h) {
-        if (ball.mega) {
-          // mega smashes through the barrier
-        } else {
-          explode(ball.x, ball.y, "#9fb0c8", 12);
-          ball.alive = false;
-          return;
-        }
+      if (barrier && ball.y - ball.r < barrier.y + barrier.h && ball.y + ball.r > barrier.y &&
+          ball.x + ball.r > barrier.x && ball.x - ball.r < barrier.x + barrier.w) {
+        if (!ball.mega) { explode(ball.x, ball.y, "#9fb0c8", 12); ball.alive = false; return; }
       }
 
-      const dir = { x: ball.vx, y: ball.vy };
-      const dl = Math.hypot(dir.x, dir.y) || 1;
-      dir.x /= dl; dir.y /= dl;
+      const dl = Math.hypot(ball.vx, ball.vy) || 1;
+      const dir = { x: ball.vx / dl, y: ball.vy / dl };
 
       for (const b of bricks) {
-        if (b.state === "debris") continue;
-        if (!ballHitsBrick(ball, b)) continue;
-
+        if (b.state === "debris" || !ballHitsBrick(ball, b)) continue;
         if (ball.mega) {
-          // explosive blast: knock everything nearby
-          explode(ball.x, ball.y, "#ff7a2e", 40);
-          const R = 150;
+          explode(ball.x, ball.y, "#ff7a2e", 42);
+          const R = 155;
           for (const o of bricks) {
-            const ox = o.cx - ball.x, oy = o.cy - ball.y;
-            const d = Math.hypot(ox, oy);
-            if (d < R) {
-              const f = (1 - d / R) * 34;
-              dislodge(o, ox / (d || 1), oy / (d || 1) - 0.4, f);
-            }
+            const ox = o.cx - ball.x, oy = o.cy - ball.y, d = Math.hypot(ox, oy);
+            if (d < R) dislodge(o, ox / (d || 1), oy / (d || 1) - 0.3, (1 - d / R) * 34);
           }
-          ball.alive = false;
-          return;
+          ball.alive = false; return;
         }
-
-        // normal hit
         b.hp--;
         explode(ball.x, ball.y, b.metal ? "#dfe6f2" : "#e0843a", 8);
-        if (b.hp <= 0) {
-          dislodge(b, dir.x, dir.y, 16);
-        } else {
-          // metal not broken yet: small shudder
-          b.av += (Math.random() - 0.5) * 0.05;
-        }
+        if (b.hp <= 0) dislodge(b, dir.x, dir.y, 16);
+        else b.av += (Math.random() - 0.5) * 0.05;
         if (b.metal && b.hp > 0) { ball.vx *= 0.2; ball.vy *= 0.2; }
         else { ball.vx *= 0.55; ball.vy *= 0.55; }
         if (Math.hypot(ball.vx, ball.vy) < 4) { ball.alive = false; return; }
       }
     }
-    if (ball.x < -40 || ball.x > WORLD_W + 40 || ball.y > WORLD_H + 40) ball.alive = false;
+    if (ball.x < -40 || ball.x > WORLD_W + 40 || ball.y < -120 || ball.y > WORLD_H + 60) ball.alive = false;
   }
 
   function isSupported(b) {
-    if (b.cy + b.hh >= STAND_TOP - 4 && b.cx > STAND_X0 - 6 && b.cx < STAND_X1 + 6) return true;
+    if (b.cy + b.hh >= TABLE_TOP - 4 && b.cx > TABLE_CX - TABLE_HW - 6 && b.cx < TABLE_CX + TABLE_HW + 6) return true;
     for (const o of bricks) {
       if (o === b || o.state !== "settled") continue;
       const xover = Math.abs(o.cx - b.cx) < (o.hw + b.hw - 6);
@@ -341,50 +299,31 @@
   }
 
   function update() {
-    // moving barrier
     if (barrier) {
-      barrier.y += barrier.dir * barrier.speed;
-      if (barrier.y < barrier.min) { barrier.y = barrier.min; barrier.dir = 1; }
-      if (barrier.y > barrier.max) { barrier.y = barrier.max; barrier.dir = -1; }
+      barrier.x += barrier.dir * barrier.speed;
+      if (barrier.x < barrier.min) { barrier.x = barrier.min; barrier.dir = 1; }
+      if (barrier.x + barrier.w > barrier.max) { barrier.x = barrier.max - barrier.w; barrier.dir = -1; }
     }
 
     for (const ball of balls) stepBall(ball);
     balls = balls.filter((b) => b.alive);
 
-    // cascade: settled bricks that lost support fall
     for (const b of bricks) {
-      if (b.state === "settled" && !isSupported(b)) {
-        b.state = "debris";
-        b.vy += 0.5;
-        b.av += (Math.random() - 0.5) * 0.1;
-      }
+      if (b.state === "settled" && !isSupported(b)) { b.state = "debris"; b.vy += 0.4; b.av += (Math.random() - 0.5) * 0.12; }
     }
 
-    // debris physics
     for (const b of bricks) {
       if (b.state !== "debris") continue;
-      b.vy += GRAV;
-      b.cx += b.vx; b.cy += b.vy; b.angle += b.av;
-      b.vx *= 0.992;
-      if (b.cy + b.hh > GROUND_Y) {
-        b.cy = GROUND_Y - b.hh;
-        b.vy *= -0.32; b.vx *= 0.7; b.av *= 0.6;
-        if (Math.abs(b.vy) < 1) b.vy = 0;
-      }
+      b.vy += GRAV; b.cx += b.vx; b.cy += b.vy; b.angle += b.av; b.vx *= 0.992;
     }
-    // remove debris that flew off the sides
-    bricks = bricks.filter((b) => b.cx > -120 && b.cx < WORLD_W + 120);
+    bricks = bricks.filter((b) => b.cx > -150 && b.cx < WORLD_W + 150 && b.cy < WORLD_H + 120);
 
-    for (const p of particles) {
-      p.vy += 0.18; p.x += p.vx; p.y += p.vy; p.life -= 0.025;
-    }
+    for (const p of particles) { p.vy += p.smoke ? 0.02 : 0.18; p.x += p.vx; p.y += p.vy; if (p.smoke) p.vx *= 0.94; p.life -= p.smoke ? 0.03 : 0.025; }
     particles = particles.filter((p) => p.life > 0);
 
-    // win check
     if (!levelDone && settledBricks().length === 0 && balls.length === 0) {
       levelDone = true;
-      score += Math.max(0, 120 - shots * 10);
-      scoreEl.textContent = score;
+      score += Math.max(0, 120 - shots * 10); scoreEl.textContent = score;
       setTimeout(showWin, 500);
     }
   }
@@ -394,136 +333,176 @@
     winSub.textContent = "Cleared in " + shots + (shots === 1 ? " shot." : " shots.");
     winOverlay.classList.add("show");
   }
-
-  nextBtn.addEventListener("click", () => {
-    winOverlay.classList.remove("show");
-    level++;
-    buildLevel(level);
-  });
+  nextBtn.addEventListener("click", () => { winOverlay.classList.remove("show"); level++; buildLevel(level); });
 
   // ---- rendering ----
-  function drawBrick(b) {
+  function path(pts) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+  }
+
+  function drawCuboid(b) {
     ctx.save();
     ctx.translate(b.cx, b.cy);
     ctx.rotate(b.angle);
-    const w = b.hw * 2, h = b.hh * 2;
-    let grad;
-    if (b.metal) {
-      grad = ctx.createLinearGradient(0, -b.hh, 0, b.hh);
-      grad.addColorStop(0, "#dfe6f2"); grad.addColorStop(.5, "#9aa6bd"); grad.addColorStop(1, "#5d6680");
-    } else {
-      grad = ctx.createLinearGradient(0, -b.hh, 0, b.hh);
-      grad.addColorStop(0, "#d98a4a"); grad.addColorStop(1, "#a8541f");
-    }
-    ctx.fillStyle = grad;
+    const hw = b.hw, hh = b.hh, dx = DEPTH_X, dy = DEPTH_Y;
+    const top   = b.metal ? "#eef2f8" : "#e6a35c";
+    const sideC = b.metal ? "#6b7488" : "#8a4017";
+    // top face
+    ctx.fillStyle = top;
+    path([[-hw, -hh], [hw, -hh], [hw + dx, -hh + dy], [-hw + dx, -hh + dy]]); ctx.fill();
+    // right face
+    ctx.fillStyle = sideC;
+    path([[hw, -hh], [hw, hh], [hw + dx, hh + dy], [hw + dx, -hh + dy]]); ctx.fill();
+    // front face
+    const g = ctx.createLinearGradient(0, -hh, 0, hh);
+    if (b.metal) { g.addColorStop(0, "#dfe6f2"); g.addColorStop(.5, "#aab4ca"); g.addColorStop(1, "#7a8399"); }
+    else { g.addColorStop(0, "#d98a4a"); g.addColorStop(1, "#a8541f"); }
+    ctx.fillStyle = g;
     ctx.strokeStyle = b.metal ? "#3a4258" : "#6e3413";
-    ctx.lineWidth = 2;
-    roundRect(-b.hw, -b.hh, w, h, 4);
-    ctx.fill(); ctx.stroke();
-    if (b.metal) {
-      ctx.fillStyle = "rgba(255,255,255,.5)";
-      ctx.beginPath(); ctx.arc(-b.hw + 8, 0, 2, 0, 7); ctx.arc(b.hw - 8, 0, 2, 0, 7); ctx.fill();
-      if (b.hp < 3) { ctx.strokeStyle = "rgba(20,24,34,.6)"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(-6, -b.hh + 3); ctx.lineTo(2, 4); ctx.lineTo(-3, b.hh - 3); ctx.stroke(); }
+    ctx.lineWidth = 1.5;
+    path([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]); ctx.fill(); ctx.stroke();
+    if (!b.metal) {
+      ctx.strokeStyle = "rgba(110,52,19,.35)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-hw + 4, -hh + 6); ctx.lineTo(hw - 4, -hh + 6);
+      ctx.moveTo(-hw + 4, hh - 6); ctx.lineTo(hw - 4, hh - 6); ctx.stroke();
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      ctx.beginPath(); ctx.arc(-hw + 7, -hh + 7, 2, 0, 7); ctx.arc(hw - 7, -hh + 7, 2, 0, 7);
+      ctx.arc(-hw + 7, hh - 7, 2, 0, 7); ctx.arc(hw - 7, hh - 7, 2, 0, 7); ctx.fill();
     }
     ctx.restore();
   }
 
-  function roundRect(x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
+  function drawTable() {
+    const cx = TABLE_CX, top = TABLE_TOP, tw = TABLE_HW;
+    const dx = 26, dy = -20;            // tabletop perspective depth
+    // shadow on snow
+    ctx.fillStyle = "rgba(40,60,90,.18)";
+    ctx.beginPath(); ctx.ellipse(cx + 6, LEG_BOTTOM + 6, tw + 24, 22, 0, 0, 7); ctx.fill();
+    // back legs
+    ctx.fillStyle = "#6e4a28";
+    for (const lx of [cx - tw + 30, cx + tw - 30]) {
+      path([[lx + dx, top + dy + 8], [lx + dx + 12, top + dy + 8], [lx + 6, LEG_BOTTOM], [lx - 4, LEG_BOTTOM]]); ctx.fill();
+    }
+    // tabletop slab (cuboid)
+    ctx.fillStyle = "#caa06a"; // top surface
+    path([[cx - tw, top], [cx + tw, top], [cx + tw + dx, top + dy], [cx - tw + dx, top + dy]]); ctx.fill();
+    ctx.fillStyle = "#9a6f3e"; // front apron
+    path([[cx - tw, top], [cx + tw, top], [cx + tw, top + 16], [cx - tw, top + 16]]); ctx.fill();
+    ctx.fillStyle = "#7d5a32"; // right apron
+    path([[cx + tw, top], [cx + tw + dx, top + dy], [cx + tw + dx, top + dy + 16], [cx + tw, top + 16]]); ctx.fill();
+    // front legs
+    ctx.fillStyle = "#8a5e34";
+    for (const lx of [cx - tw + 22, cx + tw - 22]) {
+      path([[lx - 8, top + 16], [lx + 8, top + 16], [lx + 5, LEG_BOTTOM], [lx - 5, LEG_BOTTOM]]); ctx.fill();
+    }
+  }
+
+  function drawCannon() {
+    // shadow
+    ctx.fillStyle = "rgba(40,60,90,.22)";
+    ctx.beginPath(); ctx.ellipse(PIVOT.x, PIVOT.y + 30, 76, 20, 0, 0, 7); ctx.fill();
+    ctx.save();
+    ctx.translate(PIVOT.x, PIVOT.y);
+    ctx.rotate(aimAngle + Math.PI / 2);   // barrel drawn along local -Y, aimed at target
+    // barrel body (tapered, foreshortened)
+    const g = ctx.createLinearGradient(-40, 0, 40, 0);
+    g.addColorStop(0, "#3a4254"); g.addColorStop(.5, "#79849c"); g.addColorStop(1, "#2c3340");
+    ctx.fillStyle = g;
+    path([[-42, 20], [42, 20], [34, -78], [-34, -78]]); ctx.fill();
+    // rope rings
+    ctx.fillStyle = "#b9854e";
+    for (const ry of [-2, -46]) { ctx.fillStyle = ry === -2 ? "#b9854e" : "#a9743e"; ctx.fillRect(-44, ry, 88, 12); }
+    ctx.strokeStyle = "rgba(60,40,20,.4)"; ctx.lineWidth = 1;
+    for (const ry of [-2, -46]) for (let xx = -42; xx < 44; xx += 9) { ctx.beginPath(); ctx.moveTo(xx, ry); ctx.lineTo(xx + 6, ry + 12); ctx.stroke(); }
+    // muzzle bore
+    ctx.fillStyle = "#5a667e";
+    ctx.beginPath(); ctx.ellipse(0, -78, 34, 14, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#171c26";
+    ctx.beginPath(); ctx.ellipse(0, -78, 23, 9, 0, 0, 7); ctx.fill();
+    ctx.restore();
+    // mount cap
+    ctx.fillStyle = "#2c3340";
+    ctx.beginPath(); ctx.ellipse(PIVOT.x, PIVOT.y + 14, 30, 16, 0, 0, 7); ctx.fill();
+  }
+
+  function drawBackground() {
+    // full-bleed: fill the entire visible canvas so there are no letterbox bars
+    const vL = -offX / scale, vT = -offY / scale;
+    const vW = cv.width / (dpr * scale), vH = cv.height / (dpr * scale);
+    const sky = ctx.createLinearGradient(0, vT, 0, HORIZON);
+    sky.addColorStop(0, "#a9d2f2"); sky.addColorStop(1, "#dcefff");
+    ctx.fillStyle = sky; ctx.fillRect(vL, vT, vW, HORIZON - vT);
+    // distant hills
+    ctx.fillStyle = "#cfe6f6";
+    ctx.beginPath(); ctx.ellipse(160, HORIZON, 260, 64, 0, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(500, HORIZON, 300, 80, 0, Math.PI, 0); ctx.fill();
+    // pine trees
+    for (const t of trees) {
+      ctx.fillStyle = "#9fc0d8";
+      ctx.beginPath(); ctx.moveTo(t.x, t.y - t.s); ctx.lineTo(t.x - t.s * .45, t.y); ctx.lineTo(t.x + t.s * .45, t.y); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(t.x, t.y - t.s * 1.4); ctx.lineTo(t.x - t.s * .35, t.y - t.s * .5); ctx.lineTo(t.x + t.s * .35, t.y - t.s * .5); ctx.closePath(); ctx.fill();
+    }
+    // snow ground
+    const snow = ctx.createLinearGradient(0, HORIZON, 0, vT + vH);
+    snow.addColorStop(0, "#ffffff"); snow.addColorStop(1, "#d6e6f4");
+    ctx.fillStyle = snow; ctx.fillRect(vL, HORIZON, vW, (vT + vH) - HORIZON);
+    ctx.fillStyle = "rgba(180,205,230,.4)";
+    ctx.beginPath(); ctx.ellipse(320, HORIZON + 14, 380, 26, 0, 0, Math.PI * 2); ctx.fill();
   }
 
   function render() {
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
-    ctx.clearRect(-offX / scale, -offY / scale, cv.width, cv.height);
+    ctx.clearRect(-offX / scale - 2, -offY / scale - 2, cv.width + 200, cv.height + 200);
+    drawBackground();
+    drawTable();
 
-    // ground
-    ctx.fillStyle = "#1a2436";
-    ctx.fillRect(-200, GROUND_Y, WORLD_W + 400, WORLD_H);
-    ctx.fillStyle = "#22304a";
-    ctx.fillRect(-200, GROUND_Y, WORLD_W + 400, 6);
+    // bricks: far (small y) first, near (large y) last
+    const sorted = bricks.slice().sort((a, b) => a.cy - b.cy);
+    for (const b of sorted) drawCuboid(b);
 
-    // stand / pedestal
-    ctx.fillStyle = "#2a3a55";
-    ctx.fillRect(STAND_X0, STAND_TOP, STAND_X1 - STAND_X0, GROUND_Y - STAND_TOP);
-    ctx.fillStyle = "#33476a";
-    ctx.fillRect(STAND_X0 - 10, STAND_TOP - 8, STAND_X1 - STAND_X0 + 20, 12);
-
-    // barrier
     if (barrier) {
-      const g = ctx.createLinearGradient(barrier.x, 0, barrier.x + barrier.w, 0);
-      g.addColorStop(0, "#aeb8cc"); g.addColorStop(.5, "#6c7790"); g.addColorStop(1, "#454e64");
+      const g = ctx.createLinearGradient(0, barrier.y, 0, barrier.y + barrier.h);
+      g.addColorStop(0, "#cdd6e6"); g.addColorStop(.5, "#7e8aa2"); g.addColorStop(1, "#4d5568");
       ctx.fillStyle = g;
-      roundRect(barrier.x, barrier.y, barrier.w, barrier.h, 5); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,.35)";
-      for (let yy = barrier.y + 10; yy < barrier.y + barrier.h - 6; yy += 18)
-        ctx.fillRect(barrier.x + 4, yy, barrier.w - 8, 3);
+      ctx.fillRect(barrier.x, barrier.y, barrier.w, barrier.h);
+      ctx.fillStyle = "rgba(255,255,255,.4)";
+      for (let xx = barrier.x + 8; xx < barrier.x + barrier.w - 6; xx += 16) ctx.fillRect(xx, barrier.y + 4, 3, barrier.h - 8);
     }
 
-    for (const b of bricks) drawBrick(b);
+    drawCannon();
 
-    // cannon
-    ctx.save();
-    ctx.translate(PIVOT.x, PIVOT.y);
-    ctx.rotate(aimAngle);
-    ctx.fillStyle = "#3b4660";
-    roundRect(0, -13, 60, 26, 8); ctx.fill();
-    ctx.fillStyle = "#586a8a";
-    roundRect(48, -15, 12, 30, 4); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = "#465270";
-    ctx.beginPath(); ctx.arc(PIVOT.x, PIVOT.y, 22, 0, 7); ctx.fill();
-    ctx.fillStyle = "#2a3147";
-    ctx.fillRect(PIVOT.x - 18, PIVOT.y + 8, 36, 30);
-
-    // balls
     for (const ball of balls) {
       ctx.fillStyle = ball.mega ? "#ff5e2e" : "#1c2536";
-      ctx.strokeStyle = ball.mega ? "#ffd24d" : "#8fa0c7";
+      ctx.strokeStyle = ball.mega ? "#ffd24d" : "#e8ecf7";
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,.35)";
+      ctx.beginPath(); ctx.arc(ball.x - ball.r * .3, ball.y - ball.r * .3, ball.r * .3, 0, 7); ctx.fill();
     }
 
-    // particles
     for (const p of particles) {
-      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.globalAlpha = Math.max(0, p.life) * (p.smoke ? .7 : 1);
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      if (p.smoke) { ctx.beginPath(); ctx.arc(p.x, p.y, 5 * (1.4 - p.life), 0, 7); ctx.fill(); }
+      else ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
     }
     ctx.globalAlpha = 1;
   }
 
-  function loop() {
-    update();
-    render();
-    requestAnimationFrame(loop);
-  }
+  function loop() { update(); render(); requestAnimationFrame(loop); }
 
   // ---- input ----
   function worldFromEvent(e) {
     const rect = cv.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left - offX) / scale,
-      y: (e.clientY - rect.top - offY) / scale,
-    };
+    return { x: (e.clientX - rect.left - offX) / scale, y: (e.clientY - rect.top - offY) / scale };
   }
-  cv.addEventListener("pointermove", (e) => {
-    const p = worldFromEvent(e);
-    aimAngle = Math.atan2(p.y - PIVOT.y, p.x - PIVOT.x);
-  });
-  cv.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    const p = worldFromEvent(e);
-    fire(p.x, p.y);
-  });
+  cv.addEventListener("pointermove", (e) => { const p = worldFromEvent(e); aimAngle = Math.atan2(p.y - PIVOT.y, p.x - PIVOT.x); });
+  cv.addEventListener("pointerdown", (e) => { e.preventDefault(); const p = worldFromEvent(e); fire(p.x, p.y); });
 
-  // expose minimal hooks for automated testing
   window.__cannon = {
     state: () => ({ level, score, shots, settled: settledBricks().length, total: bricks.length, mega: megaCharges, bombPct }),
     settledPositions: () => settledBricks().map((b) => ({ x: b.cx, y: b.cy })),
