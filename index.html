@@ -133,6 +133,7 @@
   }
   .thumb.blocks { background: linear-gradient(135deg, #ff5e2e, #2e8eff 55%, #7dff8a); }
   .thumb.chess  { background: linear-gradient(135deg, #3a4a6e, #11172b); }
+  .thumb.money  { background: linear-gradient(135deg, #2e7d32, #1e6b3a 50%, #b8902e); }
   .thumb .glyph { filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
 
   .card-body { padding: 12px 14px 14px; }
@@ -307,9 +308,18 @@
       desc: "The classic battle of kings, queens and pawns.",
       url: "https://lochlan800.github.io/Chess-/",
     },
+    {
+      id: "moneyclicker",
+      name: "Money Clicker",
+      category: "Idle",
+      glyph: "💰",          // 💰
+      thumb: "money",
+      desc: "Tap to earn cash and buy upgrades that earn for you.",
+      url: "https://lochlan800.github.io/Clicker/",
+    },
   ];
 
-  const CATEGORY_ORDER = ["Puzzle", "Strategy", "Arcade", "Cards"];
+  const CATEGORY_ORDER = ["Puzzle", "Strategy", "Idle", "Arcade", "Cards"];
 
   const catalogEl = document.getElementById("catalog");
   const searchEl = document.getElementById("search");

@@ -21,6 +21,7 @@ install or build step needed.
 | --- | --- | --- |
 | **Element Blocks** | Puzzle | `elementblocks.html` in this repo |
 | **Chess** | Strategy | the separate [`Chess-`](https://github.com/lochlan800/Chess-) repo, loaded from its live site |
+| **Money Clicker** | Idle | the separate [`Clicker`](https://github.com/lochlan800/Clicker) repo, loaded from its live site |
 
 ### Adding a game
 
