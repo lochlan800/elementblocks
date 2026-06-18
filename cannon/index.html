@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Cannon Smash</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(ellipse at 50% 0%, #243a52 0%, #121a26 60%, #0a0e16 100%);
+    color: #e8ecf7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+
+  #hud {
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    flex: 0 0 auto;
+  }
+  .stat { text-align: center; }
+  .stat .label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #8fa0c7; }
+  .stat .value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  #bomb-wrap { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 90px; }
+  #bomb-top { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #8fa0c7; }
+  #bomb-bar { height: 12px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 7px; overflow: hidden; }
+  #bomb-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffb347, #ff3b2e); transition: width .2s ease; }
+  #bomb-ready { color: #ff7a2e; font-weight: 800; }
+  #bomb-ready.hidden { visibility: hidden; }
+
+  #stage { position: relative; flex: 1 1 auto; width: 100%; max-width: 960px; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  #hint {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    color: #8fa0c7; font-size: 13px; letter-spacing: .5px; pointer-events: none;
+    background: rgba(0,0,0,.35); padding: 6px 14px; border-radius: 999px;
+    transition: opacity .4s ease;
+  }
+
+  .overlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; z-index: 10;
+    background: rgba(8, 11, 22, .72); backdrop-filter: blur(3px);
+  }
+  .overlay.show { display: flex; }
+  .panel {
+    background: linear-gradient(160deg, #1d2742, #121a30);
+    border: 1px solid rgba(255,255,255,.15); border-radius: 18px;
+    padding: 28px 34px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    animation: pop .3s ease;
+  }
+  @keyframes pop { from { transform: scale(.8); opacity: 0; } }
+  .panel h2 { font-size: 26px; margin-bottom: 6px; }
+  .panel .sub { color: #8fa0c7; margin-bottom: 18px; }
+  .panel button {
+    font: inherit; font-size: 16px; font-weight: 800; letter-spacing: 1px;
+    color: #0b1020; background: linear-gradient(135deg, #ffb347, #ff5e2e);
+    border: none; border-radius: 11px; padding: 12px 30px; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(255,94,46,.45);
+  }
+  .panel button:active { transform: scale(.95); }
+</style>
+</head>
+<body>
+  <div id="hud">
+    <div class="stat"><div class="label">Level</div><div class="value" id="level">1</div></div>
+    <div class="stat"><div class="label">Shots</div><div class="value" id="shots">0</div></div>
+    <div class="stat"><div class="label">Score</div><div class="value" id="score">0</div></div>
+    <div id="bomb-wrap">
+      <div id="bomb-top"><span>Bomb</span><span id="bomb-ready" class="hidden">★ MEGA ×2</span></div>
+      <div id="bomb-bar"><div id="bomb-fill"></div></div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hint">Tap the bricks to fire the cannon!</div>
+    <div class="overlay" id="win">
+      <div class="panel">
+        <h2 id="win-title">Level Cleared!</h2>
+        <div class="sub" id="win-sub">Nice shooting.</div>
+        <button id="next-btn">Next Level</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const WORLD_W = 960, WORLD_H = 600;
+  const GROUND_Y = 552;
+  const STAND_X0 = 600, STAND_X1 = 840, STAND_TOP = 372;
+  const PIVOT = { x: 120, y: 466 };
+  const GRAV = 0.5;
+
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const levelEl = document.getElementById("level");
+  const shotsEl = document.getElementById("shots");
+  const scoreEl = document.getElementById("score");
+  const bombFill = document.getElementById("bomb-fill");
+  const bombReady = document.getElementById("bomb-ready");
+  const hintEl = document.getElementById("hint");
+  const winOverlay = document.getElementById("win");
+  const winTitle = document.getElementById("win-title");
+  const winSub = document.getElementById("win-sub");
+  const nextBtn = document.getElementById("next-btn");
+
+  let scale = 1, offX = 0, offY = 0, dpr = 1;
+
+  function resize() {
+    const rect = cv.parentElement.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(rect.width * dpr);
+    cv.height = Math.round(rect.height * dpr);
+    scale = Math.min(rect.width / WORLD_W, rect.height / WORLD_H);
+    offX = (rect.width - WORLD_W * scale) / 2;
+    offY = (rect.height - WORLD_H * scale) / 2;
+  }
+  window.addEventListener("resize", resize);
+
+  // ---- game state ----
+  let level = 1, score = 0, shots = 0;
+  let bricks = [];      // all bricks (settled + debris)
+  let balls = [];
+  let particles = [];
+  let barrier = null;   // moving steel bar on later levels
+  let bombPct = 0, megaCharges = 0;
+  let aimAngle = -0.5;
+  let levelDone = false;
+
+  function settledBricks() { return bricks.filter((b) => b.state === "settled"); }
+
+  // ---- level generation ----
+  function buildLevel(n) {
+    bricks = []; balls = []; particles = [];
+    bombPct = 0; megaCharges = 0; levelDone = false;
+    updateBombUI();
+
+    const bw = 58, bh = 28, gap = 2;
+    const cols = Math.min(3 + Math.floor(n / 2), 4);
+    const rows = Math.min(3 + Math.floor((n - 1) / 1), 7);
+    const stackW = cols * bw + (cols - 1) * gap;
+    const startX = (STAND_X0 + STAND_X1) / 2 - stackW / 2;
+    const metalChance = Math.min(0.08 + n * 0.08, 0.55);
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        // pyramid-ish: drop a few bricks on upper rows for variety
+        if (r >= 3 && (c === 0 || c === cols - 1) && Math.random() < 0.4) continue;
+        const metal = n >= 2 && Math.random() < metalChance;
+        bricks.push({
+          cx: startX + c * (bw + gap) + bw / 2,
+          cy: STAND_TOP - bh / 2 - r * (bh + gap),
+          hw: bw / 2, hh: bh / 2,
+          vx: 0, vy: 0, av: 0, angle: 0,
+          metal, hp: metal ? 3 : 1,
+          mass: metal ? 3 : 1,
+          state: "settled",
+        });
+      }
+    }
+
+    barrier = n >= 3 ? {
+      x: 430, w: 26, y: 300, h: 120,
+      min: 150, max: 430, dir: 1, speed: 1.6 + n * 0.15,
+    } : null;
+
+    levelEl.textContent = n;
+    shots = 0; shotsEl.textContent = "0";
+  }
+
+  // ---- firing ----
+  function fire(tx, ty) {
+    if (levelDone) return;
+    const dx = tx - PIVOT.x, dy = ty - PIVOT.y;
+    const len = Math.hypot(dx, dy) || 1;
+    aimAngle = Math.atan2(dy, dx);
+    const mega = megaCharges > 0;
+    const speed = mega ? 20 : 22;
+    const tipX = PIVOT.x + Math.cos(aimAngle) * 56;
+    const tipY = PIVOT.y + Math.sin(aimAngle) * 56;
+    balls.push({
+      x: tipX, y: tipY,
+      vx: (dx / len) * speed, vy: (dy / len) * speed,
+      r: mega ? 24 : 11, mega, alive: true,
+    });
+    for (let i = 0; i < 8; i++) spawnParticle(tipX, tipY, mega ? "#ff5e2e" : "#ffd24d");
+
+    shots++; shotsEl.textContent = shots;
+    if (mega) {
+      megaCharges--;
+    } else {
+      bombPct += 25;
+      if (bombPct >= 100) { bombPct = 0; megaCharges = 2; }
+    }
+    updateBombUI();
+    hideHint();
+  }
+
+  function updateBombUI() {
+    bombFill.style.width = bombPct + "%";
+    if (megaCharges > 0) {
+      bombReady.classList.remove("hidden");
+      bombReady.textContent = "★ MEGA ×" + megaCharges;
+    } else {
+      bombReady.classList.add("hidden");
+    }
+  }
+
+  let hintHidden = false;
+  function hideHint() {
+    if (hintHidden) return;
+    hintHidden = true;
+    hintEl.style.opacity = "0";
+  }
+
+  // ---- particles ----
+  function spawnParticle(x, y, color) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6 - 2,
+      life: 1, color,
+    });
+  }
+  function explode(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 7;
+      particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2, life: 1, color });
+    }
+  }
+
+  // ---- physics helpers ----
+  function dislodge(b, ix, iy, power) {
+    if (b.state !== "settled") {
+      b.vx += ix * power / b.mass;
+      b.vy += iy * power / b.mass;
+      b.av += (Math.random() - 0.5) * 0.25;
+      return;
+    }
+    b.state = "debris";
+    b.vx += ix * power / b.mass;
+    b.vy += iy * power / b.mass - 2;
+    b.av += (ix * 0.06) + (Math.random() - 0.5) * 0.2;
+    score += 10; scoreEl.textContent = score;
+    explode(b.cx, b.cy, b.metal ? "#cfd6e6" : "#e0843a", 10);
+  }
+
+  function ballHitsBrick(ball, b) {
+    const cx = Math.max(b.cx - b.hw, Math.min(ball.x, b.cx + b.hw));
+    const cy = Math.max(b.cy - b.hh, Math.min(ball.y, b.cy + b.hh));
+    const dx = ball.x - cx, dy = ball.y - cy;
+    return dx * dx + dy * dy <= ball.r * ball.r;
+  }
+
+  function stepBall(ball) {
+    const speed = Math.hypot(ball.vx, ball.vy);
+    const steps = Math.max(1, Math.ceil(speed / 6));
+    for (let s = 0; s < steps && ball.alive; s++) {
+      ball.x += ball.vx / steps;
+      ball.y += ball.vy / steps;
+
+      // barrier block
+      if (barrier && ball.x + ball.r > barrier.x && ball.x - ball.r < barrier.x + barrier.w &&
+          ball.y + ball.r > barrier.y && ball.y - ball.r < barrier.y + barrier.h) {
+        if (ball.mega) {
+          // mega smashes through the barrier
+        } else {
+          explode(ball.x, ball.y, "#9fb0c8", 12);
+          ball.alive = false;
+          return;
+        }
+      }
+
+      const dir = { x: ball.vx, y: ball.vy };
+      const dl = Math.hypot(dir.x, dir.y) || 1;
+      dir.x /= dl; dir.y /= dl;
+
+      for (const b of bricks) {
+        if (b.state === "debris") continue;
+        if (!ballHitsBrick(ball, b)) continue;
+
+        if (ball.mega) {
+          // explosive blast: knock everything nearby
+          explode(ball.x, ball.y, "#ff7a2e", 40);
+          const R = 150;
+          for (const o of bricks) {
+            const ox = o.cx - ball.x, oy = o.cy - ball.y;
+            const d = Math.hypot(ox, oy);
+            if (d < R) {
+              const f = (1 - d / R) * 34;
+              dislodge(o, ox / (d || 1), oy / (d || 1) - 0.4, f);
+            }
+          }
+          ball.alive = false;
+          return;
+        }
+
+        // normal hit
+        b.hp--;
+        explode(ball.x, ball.y, b.metal ? "#dfe6f2" : "#e0843a", 8);
+        if (b.hp <= 0) {
+          dislodge(b, dir.x, dir.y, 16);
+        } else {
+          // metal not broken yet: small shudder
+          b.av += (Math.random() - 0.5) * 0.05;
+        }
+        if (b.metal && b.hp > 0) { ball.vx *= 0.2; ball.vy *= 0.2; }
+        else { ball.vx *= 0.55; ball.vy *= 0.55; }
+        if (Math.hypot(ball.vx, ball.vy) < 4) { ball.alive = false; return; }
+      }
+    }
+    if (ball.x < -40 || ball.x > WORLD_W + 40 || ball.y > WORLD_H + 40) ball.alive = false;
+  }
+
+  function isSupported(b) {
+    if (b.cy + b.hh >= STAND_TOP - 4 && b.cx > STAND_X0 - 6 && b.cx < STAND_X1 + 6) return true;
+    for (const o of bricks) {
+      if (o === b || o.state !== "settled") continue;
+      const xover = Math.abs(o.cx - b.cx) < (o.hw + b.hw - 6);
+      const onTop = Math.abs((o.cy - o.hh) - (b.cy + b.hh)) < 6;
+      if (xover && onTop && o.cy > b.cy) return true;
+    }
+    return false;
+  }
+
+  function update() {
+    // moving barrier
+    if (barrier) {
+      barrier.y += barrier.dir * barrier.speed;
+      if (barrier.y < barrier.min) { barrier.y = barrier.min; barrier.dir = 1; }
+      if (barrier.y > barrier.max) { barrier.y = barrier.max; barrier.dir = -1; }
+    }
+
+    for (const ball of balls) stepBall(ball);
+    balls = balls.filter((b) => b.alive);
+
+    // cascade: settled bricks that lost support fall
+    for (const b of bricks) {
+      if (b.state === "settled" && !isSupported(b)) {
+        b.state = "debris";
+        b.vy += 0.5;
+        b.av += (Math.random() - 0.5) * 0.1;
+      }
+    }
+
+    // debris physics
+    for (const b of bricks) {
+      if (b.state !== "debris") continue;
+      b.vy += GRAV;
+      b.cx += b.vx; b.cy += b.vy; b.angle += b.av;
+      b.vx *= 0.992;
+      if (b.cy + b.hh > GROUND_Y) {
+        b.cy = GROUND_Y - b.hh;
+        b.vy *= -0.32; b.vx *= 0.7; b.av *= 0.6;
+        if (Math.abs(b.vy) < 1) b.vy = 0;
+      }
+    }
+    // remove debris that flew off the sides
+    bricks = bricks.filter((b) => b.cx > -120 && b.cx < WORLD_W + 120);
+
+    for (const p of particles) {
+      p.vy += 0.18; p.x += p.vx; p.y += p.vy; p.life -= 0.025;
+    }
+    particles = particles.filter((p) => p.life > 0);
+
+    // win check
+    if (!levelDone && settledBricks().length === 0 && balls.length === 0) {
+      levelDone = true;
+      score += Math.max(0, 120 - shots * 10);
+      scoreEl.textContent = score;
+      setTimeout(showWin, 500);
+    }
+  }
+
+  function showWin() {
+    winTitle.textContent = "Level " + level + " Cleared!";
+    winSub.textContent = "Cleared in " + shots + (shots === 1 ? " shot." : " shots.");
+    winOverlay.classList.add("show");
+  }
+
+  nextBtn.addEventListener("click", () => {
+    winOverlay.classList.remove("show");
+    level++;
+    buildLevel(level);
+  });
+
+  // ---- rendering ----
+  function drawBrick(b) {
+    ctx.save();
+    ctx.translate(b.cx, b.cy);
+    ctx.rotate(b.angle);
+    const w = b.hw * 2, h = b.hh * 2;
+    let grad;
+    if (b.metal) {
+      grad = ctx.createLinearGradient(0, -b.hh, 0, b.hh);
+      grad.addColorStop(0, "#dfe6f2"); grad.addColorStop(.5, "#9aa6bd"); grad.addColorStop(1, "#5d6680");
+    } else {
+      grad = ctx.createLinearGradient(0, -b.hh, 0, b.hh);
+      grad.addColorStop(0, "#d98a4a"); grad.addColorStop(1, "#a8541f");
+    }
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = b.metal ? "#3a4258" : "#6e3413";
+    ctx.lineWidth = 2;
+    roundRect(-b.hw, -b.hh, w, h, 4);
+    ctx.fill(); ctx.stroke();
+    if (b.metal) {
+      ctx.fillStyle = "rgba(255,255,255,.5)";
+      ctx.beginPath(); ctx.arc(-b.hw + 8, 0, 2, 0, 7); ctx.arc(b.hw - 8, 0, 2, 0, 7); ctx.fill();
+      if (b.hp < 3) { ctx.strokeStyle = "rgba(20,24,34,.6)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-6, -b.hh + 3); ctx.lineTo(2, 4); ctx.lineTo(-3, b.hh - 3); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function render() {
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
+    ctx.clearRect(-offX / scale, -offY / scale, cv.width, cv.height);
+
+    // ground
+    ctx.fillStyle = "#1a2436";
+    ctx.fillRect(-200, GROUND_Y, WORLD_W + 400, WORLD_H);
+    ctx.fillStyle = "#22304a";
+    ctx.fillRect(-200, GROUND_Y, WORLD_W + 400, 6);
+
+    // stand / pedestal
+    ctx.fillStyle = "#2a3a55";
+    ctx.fillRect(STAND_X0, STAND_TOP, STAND_X1 - STAND_X0, GROUND_Y - STAND_TOP);
+    ctx.fillStyle = "#33476a";
+    ctx.fillRect(STAND_X0 - 10, STAND_TOP - 8, STAND_X1 - STAND_X0 + 20, 12);
+
+    // barrier
+    if (barrier) {
+      const g = ctx.createLinearGradient(barrier.x, 0, barrier.x + barrier.w, 0);
+      g.addColorStop(0, "#aeb8cc"); g.addColorStop(.5, "#6c7790"); g.addColorStop(1, "#454e64");
+      ctx.fillStyle = g;
+      roundRect(barrier.x, barrier.y, barrier.w, barrier.h, 5); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.35)";
+      for (let yy = barrier.y + 10; yy < barrier.y + barrier.h - 6; yy += 18)
+        ctx.fillRect(barrier.x + 4, yy, barrier.w - 8, 3);
+    }
+
+    for (const b of bricks) drawBrick(b);
+
+    // cannon
+    ctx.save();
+    ctx.translate(PIVOT.x, PIVOT.y);
+    ctx.rotate(aimAngle);
+    ctx.fillStyle = "#3b4660";
+    roundRect(0, -13, 60, 26, 8); ctx.fill();
+    ctx.fillStyle = "#586a8a";
+    roundRect(48, -15, 12, 30, 4); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = "#465270";
+    ctx.beginPath(); ctx.arc(PIVOT.x, PIVOT.y, 22, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2a3147";
+    ctx.fillRect(PIVOT.x - 18, PIVOT.y + 8, 36, 30);
+
+    // balls
+    for (const ball of balls) {
+      ctx.fillStyle = ball.mega ? "#ff5e2e" : "#1c2536";
+      ctx.strokeStyle = ball.mega ? "#ffd24d" : "#8fa0c7";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, 7); ctx.fill(); ctx.stroke();
+    }
+
+    // particles
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- input ----
+  function worldFromEvent(e) {
+    const rect = cv.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left - offX) / scale,
+      y: (e.clientY - rect.top - offY) / scale,
+    };
+  }
+  cv.addEventListener("pointermove", (e) => {
+    const p = worldFromEvent(e);
+    aimAngle = Math.atan2(p.y - PIVOT.y, p.x - PIVOT.x);
+  });
+  cv.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const p = worldFromEvent(e);
+    fire(p.x, p.y);
+  });
+
+  // expose minimal hooks for automated testing
+  window.__cannon = {
+    state: () => ({ level, score, shots, settled: settledBricks().length, total: bricks.length, mega: megaCharges, bombPct }),
+    settledPositions: () => settledBricks().map((b) => ({ x: b.cx, y: b.cy })),
+    busy: () => balls.length > 0,
+    fire: (x, y) => fire(x, y),
+    nextReady: () => winOverlay.classList.contains("show"),
+    next: () => nextBtn.click(),
+  };
+
+  resize();
+  buildLevel(1);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
