@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Money Clicker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <div class="level-bar-wrap">
+      <div class="level-bar-fill" id="progressFill"></div>
+    </div>
+    <p class="level-bar-label" id="progressLabel">Level 1 — £0 / £750,000</p>
+
+    <div class="boost-banner" id="boostBanner" hidden>
+      ⚡ 5× BOOST ACTIVE — <span id="boostCountdown">30</span>s remaining!
+    </div>
+
+    <div class="tab-panel" id="panel-game">
+
+    <header class="counter-section">
+      <p class="counter-label">Total Earned</p>
+      <p class="counter-value" id="counter">£0</p>
+      <p class="per-second" id="perSecond">£0 / sec</p>
+    </header>
+
+    <main class="note-wrapper">
+      <button class="note-btn" id="noteBtn" aria-label="Click to earn £1">
+        <svg class="note-svg" id="noteSvg" xmlns="http://www.w3.org/2000/svg"
+             viewBox="0 0 340 160" role="img" aria-hidden="true">
+          <defs>
+            <pattern id="hatch" patternUnits="userSpaceOnUse" width="4" height="4">
+              <line x1="0" y1="4" x2="4" y2="0" stroke="#2d6a3f" stroke-width="0.5" opacity="0.4"/>
+            </pattern>
+            <radialGradient id="noteGlow" cx="50%" cy="50%" r="60%">
+              <stop offset="0%"   stop-color="#4a9e5c" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#2d6a3f" stop-opacity="1"/>
+            </radialGradient>
+          </defs>
+
+          <!-- Note body -->
+          <rect x="2" y="2" width="336" height="156" rx="10" ry="10"
+                fill="url(#noteGlow)" stroke="#1a4a2a" stroke-width="2"/>
+          <rect x="2" y="2" width="336" height="156" rx="10" ry="10"
+                fill="url(#hatch)" opacity="0.5"/>
+
+          <!-- Inner border frame -->
+          <rect x="10" y="10" width="320" height="140" rx="6" ry="6"
+                fill="none" stroke="#6abf7a" stroke-width="1" stroke-dasharray="4 2" opacity="0.7"/>
+
+          <!-- Security thread -->
+          <rect x="118" y="2" width="6" height="156" fill="#1a3a22" opacity="0.6"/>
+          <text x="121" y="20" font-size="4" fill="#4a9e5c" writing-mode="tb"
+                letter-spacing="8" font-family="monospace" opacity="0.9">£1£1£1£1£1£1£1£1£1£1£1£1£1£1£1£1£1£1</text>
+
+          <!-- Portrait oval -->
+          <ellipse cx="268" cy="80" rx="40" ry="52"
+                   fill="#2d6a3f" stroke="#6abf7a" stroke-width="1" opacity="0.8"/>
+          <line x1="238" y1="55" x2="298" y2="55" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="62" x2="298" y2="62" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="69" x2="298" y2="69" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="76" x2="298" y2="76" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="83" x2="298" y2="83" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="90" x2="298" y2="90" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="97" x2="298" y2="97" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <line x1="238" y1="104" x2="298" y2="104" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <circle cx="268" cy="68" r="18" fill="#3a7a4a" stroke="#6abf7a" stroke-width="0.8" opacity="0.7"/>
+          <path d="M 235 128 Q 268 105 301 128" fill="#3a7a4a" stroke="#6abf7a" stroke-width="0.8" opacity="0.7"/>
+
+          <!-- Header -->
+          <text x="170" y="30" text-anchor="middle" font-size="9"
+                font-family="Georgia, serif" fill="#c8f0c8" letter-spacing="3" opacity="0.9">BANK OF CLAUDE</text>
+          <line x1="80" y1="34" x2="230" y2="34" stroke="#6abf7a" stroke-width="0.7" opacity="0.6"/>
+
+          <!-- Denomination -->
+          <text x="80" y="95" text-anchor="middle" font-size="64"
+                font-family="Georgia, 'Times New Roman', serif"
+                fill="#e8ffe8" font-weight="bold" opacity="0.95">£1</text>
+          <text x="80" y="115" text-anchor="middle" font-size="10"
+                font-family="Georgia, serif" fill="#a8dba8"
+                letter-spacing="4" opacity="0.85">ONE POUND</text>
+
+          <!-- Serial number -->
+          <text x="20" y="148" font-size="7" font-family="'Courier New', monospace"
+                fill="#8fcc8f" letter-spacing="1" opacity="0.7">CL 2026 • A1234567B</text>
+
+          <!-- Corner ornaments -->
+          <path d="M 18 18 Q 28 18 28 28" fill="none" stroke="#6abf7a" stroke-width="1.2" opacity="0.7"/>
+          <path d="M 18 18 Q 18 28 28 28" fill="none" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <path d="M 322 18 Q 312 18 312 28" fill="none" stroke="#6abf7a" stroke-width="1.2" opacity="0.7"/>
+          <path d="M 322 18 Q 322 28 312 28" fill="none" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <path d="M 18 142 Q 28 142 28 132" fill="none" stroke="#6abf7a" stroke-width="1.2" opacity="0.7"/>
+          <path d="M 18 142 Q 18 132 28 132" fill="none" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+          <path d="M 322 142 Q 312 142 312 132" fill="none" stroke="#6abf7a" stroke-width="1.2" opacity="0.7"/>
+          <path d="M 322 142 Q 322 132 312 132" fill="none" stroke="#6abf7a" stroke-width="0.6" opacity="0.4"/>
+
+          <!-- Watermark -->
+          <polygon points="170,55 185,80 170,105 155,80" fill="#5aaf6a" opacity="0.12"/>
+        </svg>
+      </button>
+    </main>
+
+    <p class="hint">Click the note to earn money!</p>
+
+    <div class="combo-wrap" id="comboWrap" hidden>
+      <div class="combo-bar-bg">
+        <div class="combo-bar-fill" id="comboFill"></div>
+      </div>
+      <p class="combo-label" id="comboLabel">COMBO 0</p>
+    </div>
+
+    </div><!-- end panel-game -->
+
+    <div class="tab-panel hidden" id="panel-shop">
+      <h2 class="shop-heading">Shop</h2>
+
+      <div class="shop-stats">
+        <div class="shop-stat">
+          <span class="shop-stat-label">Money Per Click</span>
+          <span class="shop-stat-value" id="statMPC">£1</span>
+        </div>
+        <div class="shop-stat">
+          <span class="shop-stat-label">Money Per Second</span>
+          <span class="shop-stat-value" id="statMPS">£0</span>
+        </div>
+      </div>
+
+      <div id="upgradesL0">
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">👆 Better Fingers</p>
+          <p class="upgrade-desc">+£1 per click</p>
+          <p class="owned-count" id="ownedCount">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn" disabled>£100</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">🕐 Lazy Finger</p>
+          <p class="upgrade-desc">+£1 per second</p>
+          <p class="owned-count" id="ownedCount4">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn4" disabled>£400</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">✨ Golden Touch</p>
+          <p class="upgrade-desc">+£10 per click</p>
+          <p class="owned-count" id="ownedCount2">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn2" disabled>£1,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">📈 Penny Trader</p>
+          <p class="upgrade-desc">+£10 per second</p>
+          <p class="owned-count" id="ownedCount5">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn5" disabled>£8,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">👊 Midas Fist</p>
+          <p class="upgrade-desc">+£50 per click</p>
+          <p class="owned-count" id="ownedCount3">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn3" disabled>£20,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">💼 Stock Broker</p>
+          <p class="upgrade-desc">+£150 per click</p>
+          <p class="owned-count" id="ownedCount6">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn6" disabled>£30,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">📊 Day Trader</p>
+          <p class="upgrade-desc">+£75 per second</p>
+          <p class="owned-count" id="ownedCount7">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn7" disabled>£100,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">🏛️ Market Mogul</p>
+          <p class="upgrade-desc">+£1,000 per click</p>
+          <p class="owned-count" id="ownedCount8">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn8" disabled>£500,000</button>
+      </div>
+      </div><!-- end upgradesL0 -->
+
+      <div id="upgradesL1" hidden>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">🏦 Hedge Fund</p>
+          <p class="upgrade-desc">+£500 per second</p>
+          <p class="owned-count" id="ownedCount9">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn9" disabled>£5,000,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">💻 Crypto Empire</p>
+          <p class="upgrade-desc">+£5,000 per click</p>
+          <p class="owned-count" id="ownedCount10">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn10" disabled>£25,000,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">🏗️ Bank Takeover</p>
+          <p class="upgrade-desc">+£5,000 per second</p>
+          <p class="owned-count" id="ownedCount11">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn11" disabled>£100,000,000</button>
+      </div>
+      <div class="upgrade-row">
+        <div class="upgrade-row-info">
+          <p class="upgrade-name">🌍 World Monopoly</p>
+          <p class="upgrade-desc">+£50,000 per click</p>
+          <p class="owned-count" id="ownedCount12">Owned: 0</p>
+        </div>
+        <button class="buy-btn" id="buyBtn12" disabled>£500,000,000</button>
+      </div>
+      </div><!-- end upgradesL1 -->
+
+      <div id="upgradesL2" hidden>
+      </div><!-- end upgradesL2 -->
+
+      <div class="spin-divider"></div>
+      <div class="spin-row">
+        <div class="spin-row-info">
+          <p class="upgrade-name">Wheel of Fortune</p>
+          <p class="upgrade-desc">Spin for big rewards... or risks!</p>
+        </div>
+        <button class="buy-btn" id="spinBtn" disabled>£20,000</button>
+      </div>
+    </div><!-- end panel-shop -->
+
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-panel="panel-game">Game</button>
+      <button class="tab-btn" data-panel="panel-shop">Shop</button>
+      <button class="tab-btn" id="rulesTabBtn">Rules</button>
+    </nav>
+
+  </div>
+
+  <div class="reward-overlay" id="rewardOverlay" hidden>
+    <div class="reward-box">
+      <div class="reward-icon">🎁</div>
+      <h2 class="reward-title">LEVEL COMPLETE!</h2>
+      <p class="reward-subtitle">Here are your rewards:</p>
+      <div class="reward-item">
+        <span class="reward-item-icon">💰</span>
+        <span id="rewardMoneyText">+£1,250,000 added!</span>
+      </div>
+      <div class="reward-item">
+        <span class="reward-item-icon">⚡</span>
+        <span>5× Boost on all earnings for 30 seconds!</span>
+      </div>
+      <div class="reward-item">
+        <span class="reward-item-icon">🎡</span>
+        <span>A free spin of the Wheel of Fortune!</span>
+      </div>
+      <button class="reward-spin-btn" id="rewardSpinBtn">🎡 SPIN THE WHEEL FOR FREE!</button>
+    </div>
+  </div>
+
+  <div class="wheel-overlay" id="wheelOverlay" hidden>
+    <div class="wheel-container">
+      <div class="wheel-pointer">▼</div>
+      <canvas id="wheelCanvas" width="480" height="480"></canvas>
+      <div class="wheel-result" id="wheelResult" hidden>
+        <p class="wheel-result-text" id="wheelResultText"></p>
+        <button class="ms-close" id="wheelClose">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="milestone-overlay" id="milestoneOverlay" hidden>
+    <div class="ms-star">⭐</div>
+    <div class="ms-wizard">🧙</div>
+    <div class="ms-trophy">
+      <div class="ms-trophy-icon">🏆</div>
+      <p class="ms-trophy-title">Level 1: Market Master</p>
+      <p class="ms-trophy-msg">Well done, you have made it to<br>Level 1: Market Master!</p>
+      <button class="ms-close" id="msClose">Continue</button>
+    </div>
+  </div>
+
+  <div class="crit-flash" id="critFlash"></div>
+
+  <div class="rules-overlay" id="rulesOverlay" hidden>
+    <div class="rules-container">
+      <button class="rules-close" id="rulesClose">&times;</button>
+
+      <div class="rules-slide" data-slide="0">
+        <h2 class="rules-title">Clicking</h2>
+        <p class="rules-text">Tap the £1 note to earn money. Every click counts toward your total earnings and unlocks new opportunities.</p>
+      </div>
+
+      <div class="rules-slide hidden" data-slide="1">
+        <h2 class="rules-title">Upgrades</h2>
+        <p class="rules-text">Visit the Shop to purchase upgrades that increase your earnings per click or per second. Higher-tier upgrades provide greater returns.</p>
+      </div>
+
+      <div class="rules-slide hidden" data-slide="2">
+        <h2 class="rules-title">Levels</h2>
+        <p class="rules-text">Reach monetary targets to progress through levels. Each level unlocks premium upgrades and grants you rewards: bonus cash and a 5× earnings boost.</p>
+      </div>
+
+      <div class="rules-slide hidden" data-slide="3">
+        <h2 class="rules-title">Combo System</h2>
+        <p class="rules-text">Click rapidly to build a combo meter. Higher combos multiply your earnings significantly. Your combo resets after 2 seconds of inactivity.</p>
+      </div>
+
+      <div class="rules-slide hidden" data-slide="4">
+        <h2 class="rules-title">Critical Hits</h2>
+        <p class="rules-text">Your clicks have a chance to trigger Critical Hits for bonus earnings. Landing a Crit activates Frenzy mode, dramatically increasing Crit frequency for 5 seconds.</p>
+      </div>
+
+      <div class="rules-slide hidden" data-slide="5">
+        <h2 class="rules-title">Wheel of Fortune</h2>
+        <p class="rules-text">Spin for random rewards or penalties. Unlock the Wheel at Level 1. Spin for free at combo milestones or pay £20,000 via the Shop.</p>
+      </div>
+
+      <div class="rules-nav">
+        <button class="rules-prev" id="rulesPrev">‹</button>
+        <div class="rules-dots">
+          <button class="rules-dot active" data-slide="0"></button>
+          <button class="rules-dot" data-slide="1"></button>
+          <button class="rules-dot" data-slide="2"></button>
+          <button class="rules-dot" data-slide="3"></button>
+          <button class="rules-dot" data-slide="4"></button>
+          <button class="rules-dot" data-slide="5"></button>
+        </div>
+        <button class="rules-next" id="rulesNext">›</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js?v=27"></script>
+
+</body>
+</html>
