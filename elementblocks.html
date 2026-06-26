@@ -77,6 +77,28 @@
 
   .score-box .value.bump { animation: bump .3s ease; }
 
+  /* ---- music mute button ---- */
+  #music-btn {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 120;
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
+    line-height: 1;
+    color: #e8ecf7;
+    background: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #music-btn:active { transform: scale(.92); }
+  #music-btn.muted { opacity: .55; }
+
   /* ---- difficulty gauge ---- */
   #difficulty {
     display: flex;
@@ -734,6 +756,8 @@
 </head>
 <body>
 
+<button id="music-btn" title="Mute music" aria-label="Mute music">🔊</button>
+
 <h1>Element Blocks</h1>
 
 <div class="scores">
@@ -1050,6 +1074,7 @@
   // a bright square-wave 16-bit lead quantized to the grid, and digital
   // zip effects at phrase ends. Scheduled with the look-ahead pattern.
 
+  let musicOn = localStorage.getItem("elementblocks-music") !== "off";
   let musicGain = null;
   let musicTimer = null;
   let musicStep = 0;
@@ -1166,7 +1191,7 @@
   }
 
   function startMusic() {
-    if (!audioCtx || musicTimer) return;
+    if (!musicOn || !audioCtx || musicTimer) return;
     if (!musicGain) {
       musicGain = audioCtx.createGain();
       musicGain.gain.value = 0.5; // keep the music under the sound effects
@@ -1182,6 +1207,11 @@
         nextNoteTime += STEP;
       }
     }, 60);
+  }
+
+  function stopMusic() {
+    clearInterval(musicTimer);
+    musicTimer = null;
   }
 
   /* ---------- turn timer ---------- */
@@ -1767,6 +1797,21 @@
   };
 
   restartBtn.addEventListener("click", newGame);
+
+  // Music mute button: stops/starts the looping soundtrack, choice remembered.
+  const musicBtn = document.getElementById("music-btn");
+  function updateMusicBtn() {
+    musicBtn.textContent = musicOn ? "🔊" : "🔇";
+    musicBtn.classList.toggle("muted", !musicOn);
+    musicBtn.title = musicOn ? "Mute music" : "Unmute music";
+  }
+  updateMusicBtn();
+  musicBtn.addEventListener("click", () => {
+    musicOn = !musicOn;
+    localStorage.setItem("elementblocks-music", musicOn ? "on" : "off");
+    if (musicOn) { ensureAudio(); startMusic(); } else { stopMusic(); }
+    updateMusicBtn();
+  });
 
   // Browsers block audio until the first interaction, so the soundtrack
   // starts the moment the player touches or clicks anywhere.
