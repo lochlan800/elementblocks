@@ -641,59 +641,145 @@
   }
 
   // ---- drawing ----
-  function drawGemShape(type, x, y, s) {
+  // Faceted "3D" gems: bevelled side facets lit from the top-left, a bright
+  // table facet, a specular glint and a drop shadow. Each type is pre-rendered
+  // to a sprite once per resize so the frame loop just blits images.
+  const LIGHT = { x: -0.55, y: -0.835 };
+  const SPRITE_PAD = 1.3; // sprite canvas size relative to cell (room for shadow)
+
+  // unit-radius silhouettes; null = sphere
+  const SHAPES = (() => {
+    const poly = (n, a0, r = 1) => Array.from({ length: n }, (_, i) => {
+      const a = a0 + i * 2 * Math.PI / n;
+      return [Math.cos(a) * r, Math.sin(a) * r];
+    });
+    return [
+      poly(4, -Math.PI / 2),                  // diamond
+      poly(6, Math.PI / 6),                   // hexagon
+      poly(4, Math.PI / 4, 1.15),             // square (cushion cut)
+      [[0, -1], [0.95, 0.75], [-0.95, 0.75]], // triangle
+      null,                                   // circle -> sphere
+      poly(5, -Math.PI / 2),                  // pentagon
+    ];
+  })();
+
+  function hexRgb(h) {
+    return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  }
+  function mixc(a, b, t) {
+    const A = hexRgb(a), B = hexRgb(b);
+    return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")";
+  }
+
+  function renderGem(c, type, x, y, s) {
     const [main, dark, light] = PALETTE[type];
     const half = s / 2;
-    const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
-    grad.addColorStop(0, light);
-    grad.addColorStop(0.45, main);
-    grad.addColorStop(1, dark);
-    ctx.fillStyle = grad;
-    ctx.strokeStyle = "rgba(0,0,0,.35)";
-    ctx.lineWidth = Math.max(1, s * 0.05);
 
-    ctx.beginPath();
-    switch (type) {
-      case 0: // diamond
-        ctx.moveTo(x, y - half);
-        ctx.lineTo(x + half, y);
-        ctx.lineTo(x, y + half);
-        ctx.lineTo(x - half, y);
-        break;
-      case 1: // hexagon
-        for (let i = 0; i < 6; i++) {
-          const a = Math.PI / 6 + i * Math.PI / 3;
-          ctx.lineTo(x + Math.cos(a) * half, y + Math.sin(a) * half);
-        }
-        break;
-      case 2: // rounded square
-        { const r0 = s * 0.18, hs = half * 0.92;
-          ctx.roundRect(x - hs, y - hs, hs * 2, hs * 2, r0); }
-        break;
-      case 3: // triangle
-        ctx.moveTo(x, y - half);
-        ctx.lineTo(x + half * 0.95, y + half * 0.75);
-        ctx.lineTo(x - half * 0.95, y + half * 0.75);
-        break;
-      case 4: // circle
-        ctx.arc(x, y, half * 0.92, 0, Math.PI * 2);
-        break;
-      case 5: // pentagon
-        for (let i = 0; i < 5; i++) {
-          const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
-          ctx.lineTo(x + Math.cos(a) * half, y + Math.sin(a) * half);
-        }
-        break;
+    c.save();
+    c.shadowColor = "rgba(0,0,0,.5)";
+    c.shadowBlur = s * 0.1;
+    c.shadowOffsetY = s * 0.07;
+
+    if (!SHAPES[type]) { // sphere
+      const g = c.createRadialGradient(x - half * 0.35, y - half * 0.4, half * 0.08, x, y, half * 0.98);
+      g.addColorStop(0, light);
+      g.addColorStop(0.45, main);
+      g.addColorStop(1, dark);
+      c.beginPath();
+      c.arc(x, y, half * 0.92, 0, Math.PI * 2);
+      c.fillStyle = g;
+      c.fill();
+      c.shadowColor = "transparent";
+      c.strokeStyle = "rgba(0,0,0,.35)";
+      c.lineWidth = Math.max(1, s * 0.035);
+      c.stroke();
+      const spx = x - half * 0.34, spy = y - half * 0.42;
+      const sp = c.createRadialGradient(spx, spy, 0, spx, spy, half * 0.42);
+      sp.addColorStop(0, "rgba(255,255,255,.9)");
+      sp.addColorStop(1, "rgba(255,255,255,0)");
+      c.beginPath();
+      c.arc(spx, spy, half * 0.42, 0, Math.PI * 2);
+      c.fillStyle = sp;
+      c.fill();
+      c.restore();
+      return;
     }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
 
-    // facet highlight
-    ctx.beginPath();
-    ctx.arc(x - half * 0.32, y - half * 0.36, half * 0.22, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255,255,255,.75)";
-    ctx.fill();
+    const outer = SHAPES[type].map(([vx, vy]) => [x + vx * half, y + vy * half]);
+    const tcx = x - half * 0.14, tcy = y - half * 0.18; // table centre, toward the light
+    const inner = outer.map(([vx, vy]) => [vx + (tcx - vx) * 0.48, vy + (tcy - vy) * 0.48]);
+    const path = (pts) => {
+      c.beginPath();
+      pts.forEach(([px, py], i) => i ? c.lineTo(px, py) : c.moveTo(px, py));
+      c.closePath();
+    };
+
+    // base silhouette (casts the shadow)
+    path(outer);
+    c.fillStyle = main;
+    c.fill();
+    c.shadowColor = "transparent";
+
+    // side facets shaded by how much they face the light
+    const n = outer.length;
+    for (let i = 0; i < n; i++) {
+      const a = outer[i], b = outer[(i + 1) % n];
+      const mx = (a[0] + b[0]) / 2 - x, my = (a[1] + b[1]) / 2 - y;
+      const len = Math.hypot(mx, my) || 1;
+      const lit = 0.5 + 0.5 * ((mx / len) * LIGHT.x + (my / len) * LIGHT.y);
+      path([a, b, inner[(i + 1) % n], inner[i]]);
+      c.fillStyle = mixc(dark, light, 0.12 + 0.72 * lit);
+      c.fill();
+    }
+
+    // table facet
+    const tg = c.createLinearGradient(tcx - half * 0.5, tcy - half * 0.5, tcx + half * 0.6, tcy + half * 0.6);
+    tg.addColorStop(0, light);
+    tg.addColorStop(1, main);
+    path(inner);
+    c.fillStyle = tg;
+    c.fill();
+
+    // facet edges
+    c.strokeStyle = "rgba(0,0,0,.3)";
+    c.lineWidth = Math.max(1, s * 0.035);
+    path(outer);
+    c.stroke();
+    c.strokeStyle = "rgba(255,255,255,.35)";
+    c.lineWidth = Math.max(1, s * 0.02);
+    path(inner);
+    c.stroke();
+    c.strokeStyle = "rgba(255,255,255,.14)";
+    for (let i = 0; i < n; i++) {
+      c.beginPath();
+      c.moveTo(outer[i][0], outer[i][1]);
+      c.lineTo(inner[i][0], inner[i][1]);
+      c.stroke();
+    }
+
+    // specular glint on the table
+    const gx = tcx - half * 0.12, gy = tcy - half * 0.12;
+    const sp = c.createRadialGradient(gx, gy, 0, gx, gy, half * 0.34);
+    sp.addColorStop(0, "rgba(255,255,255,.85)");
+    sp.addColorStop(1, "rgba(255,255,255,0)");
+    c.beginPath();
+    c.arc(gx, gy, half * 0.34, 0, Math.PI * 2);
+    c.fillStyle = sp;
+    c.fill();
+
+    c.restore();
+  }
+
+  let sprites = [];
+  function buildSprites() {
+    sprites = [];
+    const size = Math.max(8, Math.round(cell * SPRITE_PAD * devicePixelRatio));
+    for (let t = 0; t < TYPES; t++) {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = size;
+      renderGem(cv.getContext("2d"), t, size / 2, size / 2, cell * 0.8 * devicePixelRatio);
+      sprites.push(cv);
+    }
   }
 
   function draw() {
@@ -733,14 +819,15 @@
         if (!g) continue;
         const x = c * cell + cell / 2 + g.ox;
         const y = r * cell + cell / 2 + g.oy;
-        let s = cell * 0.8;
+        let k = 1;
         if (g.clearing) {
           const t = Math.min(1, g.clearT);
-          s *= 1 - t;
+          k = 1 - t;
           ctx.globalAlpha = 1 - t;
-          if (s < 1) { ctx.globalAlpha = 1; continue; }
+          if (k * cell < 1) { ctx.globalAlpha = 1; continue; }
         }
-        drawGemShape(g.type, x, y, s);
+        const w = cell * SPRITE_PAD * k;
+        ctx.drawImage(sprites[g.type], x - w / 2, y - w / 2, w, w);
         ctx.globalAlpha = 1;
       }
     }
@@ -852,21 +939,9 @@
         if (g) { g.ox *= k; g.oy *= k; g.vy *= k; }
       }
     }
+    buildSprites();
   }
   window.addEventListener("resize", resize);
-
-  // roundRect fallback for older browsers
-  if (!ctx.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-      this.moveTo(x + r, y);
-      this.arcTo(x + w, y, x + w, y + h, r);
-      this.arcTo(x + w, y + h, x, y + h, r);
-      this.arcTo(x, y + h, x, y, r);
-      this.arcTo(x, y, x + w, y, r);
-      this.closePath();
-      return this;
-    };
-  }
 
   // ---- main loop ----
   let last = performance.now();
