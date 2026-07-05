@@ -218,7 +218,7 @@
 (() => {
   "use strict";
 
-  const COLS = 8, ROWS = 8, TYPES = 6;
+  const COLS = 8, ROWS = 8, TYPES = 7; // the 7th gem only appears at higher levels
   const MOVES_PER_LEVEL = 20;
   const BONUS_PER_MOVE = 50;
   const BEST_KEY = "gemswap-best";
@@ -232,6 +232,7 @@
     ["#52d95c", "#1c7a2c", "#c0f5c4"],  // green
     ["#3fc3ff", "#0e5f96", "#c0ecff"],  // blue
     ["#c07dff", "#5f2a9c", "#e9d4ff"],  // purple
+    ["#dcdcec", "#7c7c9c", "#ffffff"],  // silver star (levels 4+)
   ];
 
   const canvas = document.getElementById("board");
@@ -267,6 +268,8 @@
   let levelScore = 0;
   let levelGoal = 1000;
   let moves = MOVES_PER_LEVEL;
+  let movesMax = MOVES_PER_LEVEL;
+  let activeTypes = 6;
   let combo = 0;
   let best = +localStorage.getItem(BEST_KEY) || 0;
   let popups = [];          // floating score texts
@@ -320,7 +323,7 @@
     return { type, ox: 0, oy: 0, vy: 0, falling: false, clearing: false, clearT: 0 };
   }
 
-  function randType() { return (Math.random() * TYPES) | 0; }
+  function randType() { return (Math.random() * activeTypes) | 0; }
 
   function typeAt(r, c) {
     const g = grid[r] && grid[r][c];
@@ -489,12 +492,25 @@
   }
 
   // ---- level / game flow ----
+  // Each level raises the target; level 4 adds a 7th gem colour and levels
+  // 6 and 9 trim the move count, so the ramp is felt, not just numbered.
+  function levelConfig(n) {
+    return {
+      goal: 1000 + (n - 1) * 600,
+      moves: n >= 9 ? 16 : n >= 6 ? 18 : 20,
+      types: n >= 4 ? 7 : 6,
+    };
+  }
+
   function startLevel(n, freshGame) {
     level = n;
     if (freshGame) { totalScore = 0; }
+    const cfg = levelConfig(n);
     levelScore = 0;
-    levelGoal = 1000 + (n - 1) * 600;
-    moves = MOVES_PER_LEVEL;
+    levelGoal = cfg.goal;
+    moves = cfg.moves;
+    movesMax = cfg.moves;
+    activeTypes = cfg.types;
     combo = 0;
     selected = null;
     swapInfo = null;
@@ -505,6 +521,7 @@
     state = "falling";
     idleSince = performance.now();
     updateHud();
+    showToast("Level " + n + " — reach " + cfg.goal + " in " + cfg.moves + " moves");
   }
 
   function finishResolve() {
@@ -517,8 +534,12 @@
       state = "won";
       sfx.level();
       updateHud();
+      const cur = levelConfig(level), next = levelConfig(level + 1);
+      let challenge = "Next: Level " + (level + 1) + " — target " + next.goal;
+      if (next.moves < cur.moves) challenge += " in only " + next.moves + " moves";
+      if (next.types > cur.types) challenge += "\n⭐ A new silver gem joins the board!";
       showOverlay("🏆", "Level " + level + " Clear!",
-        "+" + bonus + " bonus for " + moves + " spare moves\nScore: " + totalScore,
+        "+" + bonus + " bonus for " + moves + " spare moves\nScore: " + totalScore + "\n\n" + challenge,
         "Next Level", () => startLevel(level + 1, false));
       return;
     }
@@ -559,7 +580,7 @@
     movesEl.textContent = moves;
     levelEl.textContent = level;
     bestEl.textContent = best;
-    ringEl.style.strokeDashoffset = RING_C * (1 - Math.max(0, moves) / MOVES_PER_LEVEL);
+    ringEl.style.strokeDashoffset = RING_C * (1 - Math.max(0, moves) / movesMax);
     progressFill.style.width = Math.min(100, levelScore / levelGoal * 100) + "%";
   }
 
@@ -660,6 +681,11 @@
       [[0, -1], [0.95, 0.75], [-0.95, 0.75]], // triangle
       null,                                   // circle -> sphere
       poly(5, -Math.PI / 2),                  // pentagon
+      Array.from({ length: 10 }, (_, i) => {  // five-point star
+        const a = -Math.PI / 2 + i * Math.PI / 5;
+        const r = i % 2 ? 0.48 : 1.05;
+        return [Math.cos(a) * r, Math.sin(a) * r];
+      }),
     ];
   })();
 
@@ -954,7 +980,7 @@
   }
 
   resize();
-  startLevel(1, true);
+  startLevel(Math.max(1, +new URLSearchParams(location.search).get("level") || 1), true);
   updateHud();
   requestAnimationFrame(frame);
 })();
