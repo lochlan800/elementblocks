@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gem Swap</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💎</text></svg>">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(ellipse at 50% -20%, #2b3a5e 0%, #10162a 55%, #0a0e1c 100%);
+    background-attachment: fixed;
+    color: #e8ecf7;
+    display: flex;
+    justify-content: center;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+
+  #app {
+    width: min(100vw, 560px);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+
+  /* ---- HUD ---- */
+  #hud {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 16px;
+    padding: 8px 18px;
+    flex: 0 0 auto;
+  }
+
+  .stat { text-align: center; min-width: 86px; }
+  .stat .label {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #8fa0c7;
+  }
+  .stat .value {
+    font-size: 26px; font-weight: 800;
+    text-shadow: 0 2px 8px rgba(77, 195, 255, .35);
+  }
+
+  #moves-wrap { position: relative; width: 64px; height: 64px; flex: 0 0 auto; }
+  #moves-wrap svg { width: 64px; height: 64px; transform: rotate(-90deg); }
+  #moves-ring-bg { fill: rgba(10, 14, 28, .8); stroke: rgba(255, 255, 255, .12); stroke-width: 5; }
+  #moves-ring {
+    fill: none; stroke: url(#ring-grad); stroke-width: 5; stroke-linecap: round;
+    transition: stroke-dashoffset .3s ease;
+  }
+  #moves {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 800;
+  }
+
+  /* ---- progress ---- */
+  #progress {
+    width: 100%; height: 10px; flex: 0 0 auto;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  #progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #4dc3ff, #7dff8a);
+    border-radius: 999px;
+    transition: width .35s ease;
+  }
+
+  /* ---- board ---- */
+  #board-wrap { flex: 1 1 auto; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  #board {
+    border: 2px solid rgba(255, 200, 80, .65);
+    border-radius: 12px;
+    box-shadow: 0 0 24px rgba(255, 190, 60, .18), 0 14px 40px rgba(0, 0, 0, .5);
+    background: rgba(10, 14, 28, .7);
+    touch-action: none;
+  }
+
+  /* ---- footer ---- */
+  #footer {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    color: #8fa0c7; font-size: 14px; font-weight: 700;
+    flex: 0 0 auto;
+  }
+  #footer .spacer { flex: 1; }
+  #footer .val { color: #e8ecf7; }
+  .icon-btn {
+    font: inherit; font-size: 17px;
+    color: #e8ecf7;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 10px;
+    width: 42px; height: 38px;
+    cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(.94); }
+
+  /* ---- toast ---- */
+  #toast {
+    position: fixed; left: 50%; top: 18%;
+    transform: translateX(-50%);
+    background: rgba(18, 26, 48, .95);
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-weight: 700; font-size: 15px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s ease;
+    z-index: 20;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ---- overlay ---- */
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(8, 11, 22, .82);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 30; padding: 20px;
+  }
+  #overlay.show { display: flex; }
+  .panel {
+    width: min(90vw, 340px);
+    background: linear-gradient(160deg, #1d2742, #121a30);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 18px;
+    padding: 30px 26px 26px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } }
+  #ov-glyph { font-size: 50px; margin-bottom: 8px; }
+  #ov-title { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  #ov-sub { color: #8fa0c7; font-size: 15px; line-height: 1.5; margin-bottom: 22px; white-space: pre-line; }
+  #ov-btn {
+    font: inherit; font-size: 17px; font-weight: 700;
+    color: #0b1020; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #7dff8a, #4dc3ff);
+    box-shadow: 0 4px 16px rgba(77, 195, 255, .4);
+    border-radius: 12px;
+    padding: 13px 34px;
+  }
+  #ov-btn:active { transform: scale(.95); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="stat">
+      <div class="label">Target</div>
+      <div class="value" id="target">1000</div>
+    </div>
+    <div id="moves-wrap">
+      <svg viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#4dc3ff"/>
+            <stop offset="1" stop-color="#c07dff"/>
+          </linearGradient>
+        </defs>
+        <circle id="moves-ring-bg" cx="32" cy="32" r="27"/>
+        <circle id="moves-ring" cx="32" cy="32" r="27"/>
+      </svg>
+      <div id="moves">20</div>
+    </div>
+    <div class="stat">
+      <div class="label">Score</div>
+      <div class="value" id="score">0</div>
+    </div>
+  </div>
+
+  <div id="progress"><div id="progress-fill"></div></div>
+
+  <div id="board-wrap"><canvas id="board"></canvas></div>
+
+  <div id="footer">
+    <span>Level <span class="val" id="level">1</span></span>
+    <span class="spacer"></span>
+    <span>Best <span class="val" id="best">0</span></span>
+    <button class="icon-btn" id="mute-btn" aria-label="Toggle sound">🔊</button>
+    <button class="icon-btn" id="restart-btn" aria-label="Restart">↻</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="overlay">
+  <div class="panel">
+    <div id="ov-glyph">💎</div>
+    <h2 id="ov-title"></h2>
+    <p id="ov-sub"></p>
+    <button id="ov-btn"></button>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const COLS = 8, ROWS = 8, TYPES = 6;
+  const MOVES_PER_LEVEL = 20;
+  const BONUS_PER_MOVE = 50;
+  const BEST_KEY = "gemswap-best";
+  const MUTE_KEY = "gemswap-muted";
+
+  // Gem palettes: [main, dark, light]. One entry per gem type.
+  const PALETTE = [
+    ["#ff4d6d", "#8f1030", "#ffc2cf"],  // red
+    ["#ff9f2e", "#96520a", "#ffdcae"],  // orange
+    ["#ffd93d", "#9c7a08", "#fff1b0"],  // yellow
+    ["#52d95c", "#1c7a2c", "#c0f5c4"],  // green
+    ["#3fc3ff", "#0e5f96", "#c0ecff"],  // blue
+    ["#c07dff", "#5f2a9c", "#e9d4ff"],  // purple
+  ];
+
+  const canvas = document.getElementById("board");
+  const ctx = canvas.getContext("2d");
+
+  const targetEl = document.getElementById("target");
+  const scoreEl = document.getElementById("score");
+  const movesEl = document.getElementById("moves");
+  const levelEl = document.getElementById("level");
+  const bestEl = document.getElementById("best");
+  const ringEl = document.getElementById("moves-ring");
+  const progressFill = document.getElementById("progress-fill");
+  const toastEl = document.getElementById("toast");
+  const overlayEl = document.getElementById("overlay");
+  const ovGlyph = document.getElementById("ov-glyph");
+  const ovTitle = document.getElementById("ov-title");
+  const ovSub = document.getElementById("ov-sub");
+  const ovBtn = document.getElementById("ov-btn");
+  const muteBtn = document.getElementById("mute-btn");
+  const restartBtn = document.getElementById("restart-btn");
+
+  const RING_C = 2 * Math.PI * 27;
+  ringEl.style.strokeDasharray = RING_C;
+
+  // ---- state ----
+  let grid = [];            // grid[r][c] = gem | null
+  let cell = 48;            // cell size in CSS px
+  let state = "idle";       // idle | swapping | clearing | falling | over | won
+  let swapInfo = null;      // {a, b, reverted}
+  let selected = null;      // {r, c}
+  let level = 1;
+  let totalScore = 0;
+  let levelScore = 0;
+  let levelGoal = 1000;
+  let moves = MOVES_PER_LEVEL;
+  let combo = 0;
+  let best = +localStorage.getItem(BEST_KEY) || 0;
+  let popups = [];          // floating score texts
+  let hint = null;          // {a, b} cells to pulse
+  let idleSince = performance.now();
+  let toastTimer = 0;
+
+  // ---- audio ----
+  let audio = null;
+  let muted = localStorage.getItem(MUTE_KEY) === "1";
+  muteBtn.textContent = muted ? "🔇" : "🔊";
+
+  function tone(freq, dur, type, vol, delay) {
+    if (muted) return;
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch { return; }
+    }
+    if (audio.state === "suspended") audio.resume();
+    const t = audio.currentTime + (delay || 0);
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type || "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol || 0.12, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+
+  const sfx = {
+    swap()  { tone(340, 0.08, "sine", 0.08); },
+    bad()   { tone(150, 0.18, "sawtooth", 0.06); },
+    match(c){
+      const notes = [523, 587, 659, 784, 880, 1047];
+      tone(notes[Math.min(c, notes.length - 1)], 0.16, "triangle", 0.14);
+    },
+    level() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, "triangle", 0.13, i * 0.11)); },
+    over()  { [392, 330, 262].forEach((f, i) => tone(f, 0.3, "sine", 0.12, i * 0.18)); },
+  };
+
+  muteBtn.addEventListener("click", () => {
+    muted = !muted;
+    localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+    muteBtn.textContent = muted ? "🔇" : "🔊";
+  });
+
+  // ---- board helpers ----
+  function makeGem(type) {
+    return { type, ox: 0, oy: 0, vy: 0, falling: false, clearing: false, clearT: 0 };
+  }
+
+  function randType() { return (Math.random() * TYPES) | 0; }
+
+  function typeAt(r, c) {
+    const g = grid[r] && grid[r][c];
+    return g ? g.type : -1;
+  }
+
+  function initBoard() {
+    do {
+      grid = [];
+      for (let r = 0; r < ROWS; r++) {
+        grid.push([]);
+        for (let c = 0; c < COLS; c++) {
+          let t;
+          do { t = randType(); }
+          while (
+            (c >= 2 && typeAt(r, c - 1) === t && typeAt(r, c - 2) === t) ||
+            (r >= 2 && typeAt(r - 1, c) === t && typeAt(r - 2, c) === t)
+          );
+          grid[r].push(makeGem(t));
+        }
+      }
+    } while (!findPossibleMove());
+    // entrance: whole board drops in, columns staggered
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const g = grid[r][c];
+        g.oy = -(ROWS + (c % 3)) * cell;
+        g.falling = true;
+        g.vy = 0;
+      }
+    }
+  }
+
+  function findMatches() {
+    const found = new Set();
+    for (let r = 0; r < ROWS; r++) {
+      let run = 1;
+      for (let c = 1; c <= COLS; c++) {
+        if (c < COLS && typeAt(r, c) >= 0 && typeAt(r, c) === typeAt(r, c - 1)) { run++; continue; }
+        if (run >= 3) for (let k = c - run; k < c; k++) found.add(r * COLS + k);
+        run = 1;
+      }
+    }
+    for (let c = 0; c < COLS; c++) {
+      let run = 1;
+      for (let r = 1; r <= ROWS; r++) {
+        if (r < ROWS && typeAt(r, c) >= 0 && typeAt(r, c) === typeAt(r - 1, c)) { run++; continue; }
+        if (run >= 3) for (let k = r - run; k < r; k++) found.add(k * COLS + c);
+        run = 1;
+      }
+    }
+    return found;
+  }
+
+  function swapTypes(a, b) {
+    const t = grid[a.r][a.c];
+    grid[a.r][a.c] = grid[b.r][b.c];
+    grid[b.r][b.c] = t;
+  }
+
+  // Returns a swap {a, b} that creates a match, or null.
+  function findPossibleMove() {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        for (const [dr, dc] of [[0, 1], [1, 0]]) {
+          const r2 = r + dr, c2 = c + dc;
+          if (r2 >= ROWS || c2 >= COLS) continue;
+          const a = { r, c }, b = { r: r2, c: c2 };
+          swapTypes(a, b);
+          const ok = findMatches().size > 0;
+          swapTypes(a, b);
+          if (ok) return { a, b };
+        }
+      }
+    }
+    return null;
+  }
+
+  // ---- swap with animation ----
+  function animateSwap(a, b) {
+    const ga = grid[a.r][a.c], gb = grid[b.r][b.c];
+    grid[a.r][a.c] = gb;
+    grid[b.r][b.c] = ga;
+    ga.ox = (a.c - b.c) * cell; ga.oy = (a.r - b.r) * cell;
+    gb.ox = (b.c - a.c) * cell; gb.oy = (b.r - a.r) * cell;
+  }
+
+  function tryPlayerSwap(a, b) {
+    if (state !== "idle") return;
+    selected = null;
+    hint = null;
+    idleSince = performance.now();
+    animateSwap(a, b);
+    swapInfo = { a, b, reverted: false };
+    state = "swapping";
+    sfx.swap();
+  }
+
+  // ---- clearing / gravity ----
+  function startClear(matched) {
+    const mult = combo + 1;
+    const points = matched.size * 10 * mult;
+    levelScore += points;
+    totalScore += points;
+    if (totalScore > best) { best = totalScore; localStorage.setItem(BEST_KEY, best); }
+
+    // popup at centroid of the match
+    let cx = 0, cy = 0;
+    for (const key of matched) {
+      const r = (key / COLS) | 0, c = key % COLS;
+      cx += c; cy += r;
+      const g = grid[r][c];
+      g.clearing = true;
+      g.clearT = 0;
+    }
+    cx = (cx / matched.size + 0.5) * cell;
+    cy = (cy / matched.size + 0.5) * cell;
+    popups.push({ x: cx, y: cy, text: "+" + points, t: 0, big: false });
+    if (mult > 1) popups.push({ x: cx, y: cy - cell * 0.7, text: "COMBO x" + mult, t: 0, big: true });
+
+    sfx.match(combo);
+    state = "clearing";
+    updateHud();
+  }
+
+  function dropAndRefill() {
+    for (let c = 0; c < COLS; c++) {
+      let write = ROWS - 1;
+      for (let r = ROWS - 1; r >= 0; r--) {
+        const g = grid[r][c];
+        if (!g) continue;
+        if (write !== r) {
+          grid[write][c] = g;
+          grid[r][c] = null;
+          g.oy = (r - write) * cell;
+          g.falling = true;
+          g.vy = 0;
+        }
+        write--;
+      }
+      const empties = write + 1;
+      for (let r = write; r >= 0; r--) {
+        const g = makeGem(randType());
+        g.oy = -empties * cell;
+        g.falling = true;
+        g.vy = 0;
+        grid[r][c] = g;
+      }
+    }
+  }
+
+  function reshuffle() {
+    const types = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) types.push(grid[r][c].type);
+    let guard = 0;
+    do {
+      for (let i = types.length - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        [types[i], types[j]] = [types[j], types[i]];
+      }
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) grid[r][c].type = types[r * COLS + c];
+      // a fully shuffled board can still deadlock or self-match; retry, then rebuild
+      if (++guard > 60) { initBoard(); return; }
+    } while (findMatches().size > 0 || !findPossibleMove());
+    showToast("No moves left — board shuffled!");
+  }
+
+  // ---- level / game flow ----
+  function startLevel(n, freshGame) {
+    level = n;
+    if (freshGame) { totalScore = 0; }
+    levelScore = 0;
+    levelGoal = 1000 + (n - 1) * 600;
+    moves = MOVES_PER_LEVEL;
+    combo = 0;
+    selected = null;
+    swapInfo = null;
+    hint = null;
+    popups = [];
+    overlayEl.classList.remove("show");
+    initBoard();
+    state = "falling";
+    idleSince = performance.now();
+    updateHud();
+  }
+
+  function finishResolve() {
+    swapInfo = null;
+    combo = 0;
+    if (levelScore >= levelGoal) {
+      const bonus = moves * BONUS_PER_MOVE;
+      totalScore += bonus;
+      if (totalScore > best) { best = totalScore; localStorage.setItem(BEST_KEY, best); }
+      state = "won";
+      sfx.level();
+      updateHud();
+      showOverlay("🏆", "Level " + level + " Clear!",
+        "+" + bonus + " bonus for " + moves + " spare moves\nScore: " + totalScore,
+        "Next Level", () => startLevel(level + 1, false));
+      return;
+    }
+    if (moves <= 0) {
+      state = "over";
+      sfx.over();
+      updateHud();
+      showOverlay("💔", "Game Over",
+        "You reached level " + level + "\nScore: " + totalScore + "  ·  Best: " + best,
+        "Play Again", () => startLevel(1, true));
+      return;
+    }
+    if (!findPossibleMove()) reshuffle();
+    state = "idle";
+    idleSince = performance.now();
+    updateHud();
+  }
+
+  function showOverlay(glyph, title, sub, btnText, onBtn) {
+    ovGlyph.textContent = glyph;
+    ovTitle.textContent = title;
+    ovSub.textContent = sub;
+    ovBtn.textContent = btnText;
+    ovBtn.onclick = onBtn;
+    overlayEl.classList.add("show");
+  }
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+  }
+
+  function updateHud() {
+    targetEl.textContent = levelGoal;
+    scoreEl.textContent = totalScore;
+    movesEl.textContent = moves;
+    levelEl.textContent = level;
+    bestEl.textContent = best;
+    ringEl.style.strokeDashoffset = RING_C * (1 - Math.max(0, moves) / MOVES_PER_LEVEL);
+    progressFill.style.width = Math.min(100, levelScore / levelGoal * 100) + "%";
+  }
+
+  // ---- update / animation ----
+  function anyBusy() {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const g = grid[r][c];
+        if (!g) continue;
+        if (g.falling || g.clearing) return true;
+        if (g.ox !== 0 || g.oy !== 0) return true;
+      }
+    }
+    return false;
+  }
+
+  function update(dt) {
+    const GRAV = cell * 42;
+    const MAXV = cell * 22;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const g = grid[r][c];
+        if (!g) continue;
+        if (g.falling) {
+          g.vy = Math.min(MAXV, g.vy + GRAV * dt);
+          g.oy += g.vy * dt;
+          if (g.oy >= 0) { g.oy = 0; g.vy = 0; g.falling = false; }
+        } else if (g.ox !== 0 || g.oy !== 0) {
+          const k = Math.min(1, dt * 14);
+          g.ox -= g.ox * k;
+          g.oy -= g.oy * k;
+          if (Math.abs(g.ox) < 0.5 && Math.abs(g.oy) < 0.5) { g.ox = 0; g.oy = 0; }
+        }
+        if (g.clearing) {
+          g.clearT += dt / 0.24;
+          if (g.clearT >= 1) grid[r][c] = null;
+        }
+      }
+    }
+
+    for (const p of popups) p.t += dt / 1.1;
+    popups = popups.filter((p) => p.t < 1);
+
+    if (!anyBusy()) {
+      if (state === "swapping") {
+        const m = findMatches();
+        if (m.size) {
+          moves--;
+          combo = 0;
+          swapInfo = null;
+          startClear(m);
+        } else if (!swapInfo.reverted) {
+          animateSwap(swapInfo.a, swapInfo.b);
+          swapInfo.reverted = true;
+          sfx.bad();
+        } else {
+          swapInfo = null;
+          state = "idle";
+          idleSince = performance.now();
+        }
+      } else if (state === "clearing") {
+        dropAndRefill();
+        state = "falling";
+      } else if (state === "falling") {
+        const m = findMatches();
+        if (m.size) {
+          combo++;
+          startClear(m);
+        } else {
+          finishResolve();
+        }
+      }
+    }
+
+    // hint after 6s of no input
+    if (state === "idle" && !hint && performance.now() - idleSince > 6000) {
+      hint = findPossibleMove();
+    }
+  }
+
+  // ---- drawing ----
+  function drawGemShape(type, x, y, s) {
+    const [main, dark, light] = PALETTE[type];
+    const half = s / 2;
+    const grad = ctx.createLinearGradient(x - half, y - half, x + half, y + half);
+    grad.addColorStop(0, light);
+    grad.addColorStop(0.45, main);
+    grad.addColorStop(1, dark);
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = "rgba(0,0,0,.35)";
+    ctx.lineWidth = Math.max(1, s * 0.05);
+
+    ctx.beginPath();
+    switch (type) {
+      case 0: // diamond
+        ctx.moveTo(x, y - half);
+        ctx.lineTo(x + half, y);
+        ctx.lineTo(x, y + half);
+        ctx.lineTo(x - half, y);
+        break;
+      case 1: // hexagon
+        for (let i = 0; i < 6; i++) {
+          const a = Math.PI / 6 + i * Math.PI / 3;
+          ctx.lineTo(x + Math.cos(a) * half, y + Math.sin(a) * half);
+        }
+        break;
+      case 2: // rounded square
+        { const r0 = s * 0.18, hs = half * 0.92;
+          ctx.roundRect(x - hs, y - hs, hs * 2, hs * 2, r0); }
+        break;
+      case 3: // triangle
+        ctx.moveTo(x, y - half);
+        ctx.lineTo(x + half * 0.95, y + half * 0.75);
+        ctx.lineTo(x - half * 0.95, y + half * 0.75);
+        break;
+      case 4: // circle
+        ctx.arc(x, y, half * 0.92, 0, Math.PI * 2);
+        break;
+      case 5: // pentagon
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
+          ctx.lineTo(x + Math.cos(a) * half, y + Math.sin(a) * half);
+        }
+        break;
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // facet highlight
+    ctx.beginPath();
+    ctx.arc(x - half * 0.32, y - half * 0.36, half * 0.22, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,.75)";
+    ctx.fill();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    // checkerboard cells
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        ctx.fillStyle = (r + c) % 2 ? "rgba(255,255,255,.05)" : "rgba(255,255,255,.02)";
+        ctx.fillRect(c * cell, r * cell, cell, cell);
+      }
+    }
+
+    // selection highlight
+    if (selected) {
+      const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 180);
+      ctx.strokeStyle = `rgba(255, 225, 77, ${pulse})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(selected.c * cell + 2, selected.r * cell + 2, cell - 4, cell - 4);
+    }
+
+    // hint pulse
+    if (hint && state === "idle") {
+      const pulse = 0.25 + 0.2 * Math.sin(performance.now() / 220);
+      ctx.fillStyle = `rgba(125, 255, 138, ${pulse})`;
+      for (const cellPos of [hint.a, hint.b]) {
+        ctx.fillRect(cellPos.c * cell + 2, cellPos.r * cell + 2, cell - 4, cell - 4);
+      }
+    }
+
+    // gems
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const g = grid[r][c];
+        if (!g) continue;
+        const x = c * cell + cell / 2 + g.ox;
+        const y = r * cell + cell / 2 + g.oy;
+        let s = cell * 0.8;
+        if (g.clearing) {
+          const t = Math.min(1, g.clearT);
+          s *= 1 - t;
+          ctx.globalAlpha = 1 - t;
+          if (s < 1) { ctx.globalAlpha = 1; continue; }
+        }
+        drawGemShape(g.type, x, y, s);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // score popups
+    for (const p of popups) {
+      const a = 1 - p.t;
+      ctx.globalAlpha = a;
+      ctx.font = `800 ${p.big ? cell * 0.5 : cell * 0.44}px "Segoe UI", system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(10, 14, 28, .8)";
+      ctx.fillStyle = p.big ? "#ffe14d" : "#7dff8a";
+      const y = p.y - p.t * cell * 1.2;
+      ctx.strokeText(p.text, p.x, y);
+      ctx.fillText(p.text, p.x, y);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  // ---- input ----
+  function cellFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    const c = Math.floor((e.clientX - rect.left) / cell);
+    const r = Math.floor((e.clientY - rect.top) / cell);
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+    return { r, c };
+  }
+
+  function isAdjacent(a, b) {
+    return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
+  }
+
+  let pointerStart = null; // {cell, x, y, dragged}
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (state !== "idle") return;
+    const c = cellFromEvent(e);
+    if (!c) return;
+    pointerStart = { cell: c, x: e.clientX, y: e.clientY, dragged: false };
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!pointerStart || pointerStart.dragged || state !== "idle") return;
+    const dx = e.clientX - pointerStart.x;
+    const dy = e.clientY - pointerStart.y;
+    if (Math.hypot(dx, dy) < cell * 0.35) return;
+    const from = pointerStart.cell;
+    const to = { r: from.r, c: from.c };
+    if (Math.abs(dx) > Math.abs(dy)) to.c += dx > 0 ? 1 : -1;
+    else to.r += dy > 0 ? 1 : -1;
+    pointerStart.dragged = true;
+    if (to.r >= 0 && to.r < ROWS && to.c >= 0 && to.c < COLS) {
+      tryPlayerSwap(from, to);
+    }
+  });
+
+  canvas.addEventListener("pointerup", (e) => {
+    const start = pointerStart;
+    pointerStart = null;
+    if (!start || start.dragged || state !== "idle") return;
+    const c = cellFromEvent(e);
+    if (!c) { selected = null; return; }
+    if (selected && selected.r === c.r && selected.c === c.c) {
+      selected = null;
+    } else if (selected && isAdjacent(selected, c)) {
+      tryPlayerSwap(selected, c);
+    } else {
+      selected = c;
+      idleSince = performance.now();
+      hint = null;
+    }
+  });
+
+  canvas.addEventListener("pointercancel", () => { pointerStart = null; });
+
+  restartBtn.addEventListener("click", () => {
+    if (state === "over" || state === "won") return;
+    showOverlay("↻", "Restart?", "Your current score will be lost.", "Restart", () => startLevel(1, true));
+    // tapping outside cancels
+  });
+  overlayEl.addEventListener("click", (e) => {
+    // allow dismissing the restart prompt only (game over / level clear must use the button)
+    if (e.target === overlayEl && state !== "over" && state !== "won") {
+      overlayEl.classList.remove("show");
+    }
+  });
+
+  // ---- sizing ----
+  function resize() {
+    const wrap = document.getElementById("board-wrap");
+    const size = Math.max(200, Math.min(wrap.clientWidth, wrap.clientHeight) - 4);
+    const oldCell = cell;
+    cell = size / COLS;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    canvas.width = Math.round(size * devicePixelRatio);
+    canvas.height = Math.round(size * devicePixelRatio);
+    // rescale in-flight animation offsets so gems don't jump
+    if (oldCell && grid.length) {
+      const k = cell / oldCell;
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        const g = grid[r][c];
+        if (g) { g.ox *= k; g.oy *= k; g.vy *= k; }
+      }
+    }
+  }
+  window.addEventListener("resize", resize);
+
+  // roundRect fallback for older browsers
+  if (!ctx.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      this.moveTo(x + r, y);
+      this.arcTo(x + w, y, x + w, y + h, r);
+      this.arcTo(x + w, y + h, x, y + h, r);
+      this.arcTo(x, y + h, x, y, r);
+      this.arcTo(x, y, x + w, y, r);
+      this.closePath();
+      return this;
+    };
+  }
+
+  // ---- main loop ----
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (state !== "over" && state !== "won") update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  startLevel(1, true);
+  updateHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

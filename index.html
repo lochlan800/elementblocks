@@ -135,6 +135,7 @@
   .thumb.chess  { background: linear-gradient(135deg, #3a4a6e, #11172b); }
   .thumb.money  { background: linear-gradient(135deg, #2e7d32, #1e6b3a 50%, #b8902e); }
   .thumb.cannon { background: linear-gradient(135deg, #ff7a2e, #6c3a1a 60%, #2a3a55); }
+  .thumb.gems   { background: linear-gradient(135deg, #7a2eff, #2e4a8e 55%, #12aabb); }
   .thumb .glyph { filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
 
   .card-body { padding: 12px 14px 14px; }
@@ -299,6 +300,15 @@
       thumb: "blocks",
       desc: "Drop elemental shapes, clear lines, chase combos.",
       url: "elementblocks.html",
+    },
+    {
+      id: "gemswap",
+      name: "Gem Swap",
+      category: "Puzzle",
+      glyph: "💎",          // 💎
+      thumb: "gems",
+      desc: "Swap gems to match three or more, chain combos, beat the target.",
+      url: "gems/",
     },
     {
       id: "chess",

@@ -20,8 +20,10 @@ install or build step needed.
 | Game | Category | Where it lives |
 | --- | --- | --- |
 | **Element Blocks** | Puzzle | `elementblocks.html` in this repo |
+| **Gem Swap** | Puzzle | `gems/` in this repo |
 | **Chess** | Strategy | the separate [`Chess-`](https://github.com/lochlan800/Chess-) repo, loaded from its live site |
-| **Money Clicker** | Idle | the separate [`Clicker`](https://github.com/lochlan800/Clicker) repo, loaded from its live site |
+| **Money Clicker** | Idle | `clicker/` in this repo |
+| **Cannon Smash** | Arcade | `cannon/` in this repo |
 
 ### Adding a game
 
