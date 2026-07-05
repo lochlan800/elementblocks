@@ -327,15 +327,16 @@
   const CHESTS_KEY = "gemswap-chests";
   const JOURNEY_KEY = "gemswap-journey";
 
-  // Gem palettes: [main, dark, light]. One entry per gem type.
+  // Gem palettes: [main, dark, light]. Candy-bright: the darks stay vivid
+  // and saturated (never muddy) so the gems read happy, not gloomy.
   const PALETTE = [
-    ["#ff4d6d", "#8f1030", "#ffc2cf"],  // red
-    ["#ff9f2e", "#96520a", "#ffdcae"],  // orange
-    ["#ffd93d", "#9c7a08", "#fff1b0"],  // yellow
-    ["#52d95c", "#1c7a2c", "#c0f5c4"],  // green
-    ["#3fc3ff", "#0e5f96", "#c0ecff"],  // blue
-    ["#c07dff", "#5f2a9c", "#e9d4ff"],  // purple
-    ["#dcdcec", "#7c7c9c", "#ffffff"],  // silver star (levels 4+)
+    ["#ff3d7f", "#e0115f", "#ffc2d9"],  // pink-red
+    ["#ffa018", "#f2571d", "#ffe0a8"],  // orange
+    ["#ffe23d", "#ffb300", "#fffbc2"],  // sunny yellow
+    ["#3ce86b", "#0bbf4d", "#ccffdb"],  // lime green
+    ["#33ccff", "#0f8fe6", "#ccf2ff"],  // sky blue
+    ["#c96bff", "#9b2bf2", "#f0dbff"],  // violet
+    ["#f4f4ff", "#b8b8e0", "#ffffff"],  // silver star (levels 4+)
   ];
 
   const canvas = document.getElementById("board");
@@ -948,9 +949,10 @@
     const half = s / 2;
 
     c.save();
-    c.shadowColor = "rgba(0,0,0,.5)";
-    c.shadowBlur = s * 0.1;
-    c.shadowOffsetY = s * 0.07;
+    // a soft glow in the gem's own colour doubles as the drop shadow
+    c.shadowColor = "rgba(" + hexRgb(main).join(",") + ",.6)";
+    c.shadowBlur = s * 0.16;
+    c.shadowOffsetY = s * 0.05;
 
     if (!SHAPES[type]) { // sphere
       const g = c.createRadialGradient(x - half * 0.35, y - half * 0.4, half * 0.08, x, y, half * 0.98);
@@ -1000,7 +1002,7 @@
       const len = Math.hypot(mx, my) || 1;
       const lit = 0.5 + 0.5 * ((mx / len) * LIGHT.x + (my / len) * LIGHT.y);
       path([a, b, inner[(i + 1) % n], inner[i]]);
-      c.fillStyle = mixc(dark, light, 0.12 + 0.72 * lit);
+      c.fillStyle = mixc(dark, light, 0.22 + 0.72 * lit);
       c.fill();
     }
 
