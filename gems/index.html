@@ -151,8 +151,23 @@
     font-weight: 800; font-size: 18px;
   }
   .map-bar .bar-gem { width: 22px; height: 22px; color: #4dc3ff; }
-  .map-bar .total { margin-left: auto; color: #8fa0c7; font-size: 13px; font-weight: 700; }
-  .map-bar .total b { color: #ffe14d; font-size: 17px; margin-left: 6px; }
+  .map-bar .total { margin-left: auto; color: #8fa0c7; font-size: 13px; font-weight: 700; display: flex; align-items: center; }
+  .map-bar .total b { color: #ffe14d; font-size: 17px; }
+  .map-bar .jgem { width: 17px; height: 17px; color: #4dc3ff; margin: 0 4px 0 8px; }
+  #journey.bump { animation: jbump .3s ease; }
+  @keyframes jbump {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+
+  /* gems that fly across the screen into the journey counter */
+  .fly-gem {
+    position: fixed; left: 0; top: 0; z-index: 80;
+    pointer-events: none;
+    filter: drop-shadow(0 0 6px currentColor);
+    will-change: transform;
+  }
   #map-scroll { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   #map-content { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
   #map-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -477,7 +492,7 @@
   <div class="map-bar">
     <svg class="bar-gem"><use href="#i-crystal"/></svg>
     <span>The Gem Path</span>
-    <span class="total">Journey<b id="journey">0</b></span>
+    <span class="total">Journey<svg class="jgem" id="jgem"><use href="#i-crystal"/></svg><b id="journey">0</b></span>
   </div>
   <div id="map-scroll">
     <div id="map-content">
@@ -551,6 +566,7 @@
   const mapContent = document.getElementById("map-content");
   const mapSvg = document.getElementById("map-svg");
   const journeyEl = document.getElementById("journey");
+  const jgemEl = document.getElementById("jgem");
 
   const RING_C = 2 * Math.PI * 27;
   ringEl.style.strokeDasharray = RING_C;
@@ -848,6 +864,7 @@
         journeyScore += totalScore;
         unlocked = level + 1;
         saveProgress();
+        lastBank = { level: level, amount: totalScore };
       }
       if (level === MAX_LEVEL) {
         showOverlay("👑", "You reached the top!",
@@ -966,6 +983,7 @@
       const p = nodePoint(n, w, h);
       const el = document.createElement("div");
       el.className = "node " + (n < unlocked ? "done" : n === unlocked ? "current" : "locked");
+      el.dataset.level = n;
       el.style.left = p.x + "px";
       el.style.top = p.y + "px";
       if (n <= unlocked) {
@@ -987,6 +1005,7 @@
       const el = document.createElement("div");
       el.className = "chest" + (opened ? " opened" : ready ? " ready" : "") +
         (popChests && popChests.has(cl) ? " pop" : "");
+      el.dataset.level = cl;
       el.style.left = (p.x + (p.x < w / 2 ? 68 : -68)) + "px";
       el.style.top = p.y + "px";
       el.innerHTML = '<svg><use href="#' + (opened ? "i-chest-open" : "i-chest") + '"/></svg>';
@@ -1006,6 +1025,63 @@
   }
 
   let popChests = null; // chests to play the pop animation on this rebuild
+  let lastBank = null;  // {level, amount} banked by the level just cleared
+
+  // gems that arc across the screen into the journey counter
+  const FLY_COLORS = ["#ff3d7f", "#33ccff", "#3ce86b", "#ffe23d", "#c96bff"];
+
+  function flyGems(sourceRect, amount) {
+    const target = (jgemEl || journeyEl).getBoundingClientRect();
+    const tx = target.left + target.width / 2;
+    const ty = target.top + target.height / 2;
+    const count = Math.max(6, Math.min(14, Math.round(amount / 120)));
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement("div");
+      el.className = "fly-gem";
+      el.style.color = FLY_COLORS[i % FLY_COLORS.length];
+      el.innerHTML = '<svg width="22" height="22"><use href="#i-crystal"/></svg>';
+      const sx = sourceRect.left + sourceRect.width / 2 + (Math.random() * 44 - 22);
+      const sy = sourceRect.top + sourceRect.height / 2 + (Math.random() * 32 - 16);
+      el.style.transform = "translate(" + (sx - 11) + "px," + (sy - 11) + "px) scale(0)";
+      document.body.appendChild(el);
+      // curved flight: control point off to the side and above
+      const cx = (sx + tx) / 2 + (Math.random() * 180 - 90);
+      const cy = Math.min(sy, ty) - 60 - Math.random() * 140;
+      const dur = 620 + Math.random() * 280;
+      const t0 = performance.now() + i * 60;
+      const blip = i % 2 === 0;
+      requestAnimationFrame(function step(now) {
+        const t = (now - t0) / dur;
+        if (t < 0) { requestAnimationFrame(step); return; }
+        if (t >= 1) {
+          el.remove();
+          journeyEl.classList.remove("bump");
+          void journeyEl.offsetWidth;
+          journeyEl.classList.add("bump");
+          if (blip) tone(900 + Math.random() * 350, 0.07, "sine", 0.045);
+          return;
+        }
+        const u = 1 - t;
+        const x = u * u * sx + 2 * u * t * cx + t * t * tx;
+        const y = u * u * sy + 2 * u * t * cy + t * t * ty;
+        const s = t < 0.15 ? t / 0.15 : t > 0.85 ? 0.5 + (1 - t) / 0.15 * 0.5 : 1;
+        el.style.transform = "translate(" + (x - 11) + "px," + (y - 11) + "px) scale(" + s + ")";
+        requestAnimationFrame(step);
+      });
+    }
+  }
+
+  let journeyTween = 0;
+  function tickJourneyTo(value) {
+    const start = +journeyEl.textContent || 0;
+    const t0 = performance.now();
+    cancelAnimationFrame(journeyTween);
+    journeyTween = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - t0) / 950);
+      journeyEl.textContent = Math.round(start + (value - start) * t);
+      if (t < 1) journeyTween = requestAnimationFrame(step);
+    });
+  }
 
   function showMap() {
     overlayEl.classList.remove("show");
@@ -1013,28 +1089,47 @@
     clearTimeout(toastTimer);
     selected = null;
     mapEl.classList.add("show");
-    journeyEl.textContent = journeyScore;
+    // show the pre-bank total so the flying gems can visibly deliver the rest
+    journeyEl.textContent = journeyScore - (lastBank ? lastBank.amount : 0);
     buildMap();
     // scroll so the current level sits in the lower half of the screen
     const p = nodePoint(Math.min(unlocked, MAX_LEVEL), mapContent.clientWidth, mapHeight());
     mapScroll.scrollTop = p.y - mapScroll.clientHeight * 0.62;
+
+    // the level you just cleared showers its points into the journey counter
+    if (lastBank) {
+      const bank = lastBank;
+      lastBank = null;
+      setTimeout(() => {
+        if (!mapEl.classList.contains("show")) return;
+        const node = mapContent.querySelector('.node[data-level="' + bank.level + '"]');
+        if (node) flyGems(node.getBoundingClientRect(), bank.amount);
+        tickJourneyTo(journeyScore);
+      }, 450);
+    }
 
     // any chest you've passed opens on its own after a beat
     const pending = CHEST_LEVELS.filter((cl) => unlocked > cl && !openedChests.has(cl));
     if (pending.length) {
       setTimeout(() => {
         if (!mapEl.classList.contains("show")) return;
+        // remember where the closed chests sit before the rebuild replaces them
+        const rects = pending
+          .map((cl) => mapContent.querySelector('.chest[data-level="' + cl + '"]'))
+          .filter(Boolean)
+          .map((el) => el.getBoundingClientRect());
         for (const cl of pending) openedChests.add(cl);
         journeyScore += CHEST_BONUS * pending.length;
         saveProgress();
         sfx.level();
         showToast((pending.length > 1 ? pending.length + " treasure chests" : "Treasure chest") +
           " opened! +" + CHEST_BONUS * pending.length + " journey points");
-        journeyEl.textContent = journeyScore;
         popChests = new Set(pending);
         buildMap();
         popChests = null;
-      }, 800);
+        for (const r of rects) flyGems(r, CHEST_BONUS);
+        tickJourneyTo(journeyScore);
+      }, 1000);
     }
   }
 
