@@ -193,8 +193,13 @@
       inset 0 -6px 9px rgba(0, 0, 0, .5),
       0 5px 12px rgba(0, 0, 0, .45);
     cursor: default;
+    color: #9aa6c9; font-size: 19px;
   }
-  .node .lock { width: 26px; height: 26px; }
+  .node .lock-badge {
+    position: absolute; top: -15px;
+    width: 21px; height: 21px;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .55));
+  }
   .node .star-badge {
     position: absolute; top: -17px;
     width: 26px; height: 26px;
@@ -788,13 +793,14 @@
   }
 
   // ---- level / game flow ----
-  // Each level raises the target; level 4 adds a 7th gem colour and levels
-  // 6 and 9 trim the move count, so the ramp is felt, not just numbered.
+  // Each level raises the target; level 8 adds a 7th gem colour and levels
+  // 10 and 20 trim the move count, so the ramp is felt, not just numbered.
+  // Tuned gentle: generous moves and modest targets, rising slowly.
   function levelConfig(n) {
     return {
-      goal: Math.min(1000 + (n - 1) * 500, 6500),
-      moves: n >= 9 ? 16 : n >= 6 ? 18 : 20,
-      types: n >= 4 ? 7 : 6,
+      goal: Math.min(600 + (n - 1) * 300, 5000),
+      moves: n >= 20 ? 20 : n >= 10 ? 22 : 25,
+      types: n >= 8 ? 7 : 6,
     };
   }
 
@@ -961,7 +967,8 @@
           (n < unlocked ? '<svg class="star-badge"><use href="#i-star"/></svg>' : "");
         el.addEventListener("click", () => startLevel(n));
       } else {
-        el.innerHTML = '<svg class="lock"><use href="#i-lock"/></svg>';
+        el.innerHTML = "<span>" + n + "</span>" +
+          '<svg class="lock-badge"><use href="#i-lock"/></svg>';
       }
       mapContent.appendChild(el);
     }
