@@ -223,6 +223,12 @@
     50% { transform: translate(-50%, -62%); }
   }
   .chest.opened { filter: none; }
+  .chest.pop { animation: chestpop .55s ease; }
+  @keyframes chestpop {
+    0% { transform: translate(-50%, -50%) scale(.5); }
+    55% { transform: translate(-50%, -50%) scale(1.3); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+  }
 
   .decor {
     position: absolute; transform: translate(-50%, -50%);
@@ -973,25 +979,17 @@
       mapContent.appendChild(el);
     }
 
-    // treasure chests beside the path
+    // treasure chests beside the path; they open by themselves when reached
     for (const cl of CHEST_LEVELS) {
       const p = nodePoint(cl, w, h);
       const opened = openedChests.has(cl);
-      const ready = !opened && unlocked > cl;
+      const ready = !opened && unlocked > cl; // glows briefly until the auto-open fires
       const el = document.createElement("div");
-      el.className = "chest" + (opened ? " opened" : ready ? " ready" : "");
+      el.className = "chest" + (opened ? " opened" : ready ? " ready" : "") +
+        (popChests && popChests.has(cl) ? " pop" : "");
       el.style.left = (p.x + (p.x < w / 2 ? 68 : -68)) + "px";
       el.style.top = p.y + "px";
       el.innerHTML = '<svg><use href="#' + (opened ? "i-chest-open" : "i-chest") + '"/></svg>';
-      if (ready) el.addEventListener("click", () => {
-        openedChests.add(cl);
-        journeyScore += CHEST_BONUS;
-        saveProgress();
-        sfx.level();
-        showToast("Chest opened! +" + CHEST_BONUS + " journey points");
-        journeyEl.textContent = journeyScore;
-        buildMap();
-      });
       mapContent.appendChild(el);
     }
 
@@ -1007,6 +1005,8 @@
     mapContent.appendChild(g);
   }
 
+  let popChests = null; // chests to play the pop animation on this rebuild
+
   function showMap() {
     overlayEl.classList.remove("show");
     toastEl.classList.remove("show");
@@ -1018,6 +1018,24 @@
     // scroll so the current level sits in the lower half of the screen
     const p = nodePoint(Math.min(unlocked, MAX_LEVEL), mapContent.clientWidth, mapHeight());
     mapScroll.scrollTop = p.y - mapScroll.clientHeight * 0.62;
+
+    // any chest you've passed opens on its own after a beat
+    const pending = CHEST_LEVELS.filter((cl) => unlocked > cl && !openedChests.has(cl));
+    if (pending.length) {
+      setTimeout(() => {
+        if (!mapEl.classList.contains("show")) return;
+        for (const cl of pending) openedChests.add(cl);
+        journeyScore += CHEST_BONUS * pending.length;
+        saveProgress();
+        sfx.level();
+        showToast((pending.length > 1 ? pending.length + " treasure chests" : "Treasure chest") +
+          " opened! +" + CHEST_BONUS * pending.length + " journey points");
+        journeyEl.textContent = journeyScore;
+        popChests = new Set(pending);
+        buildMap();
+        popChests = null;
+      }, 800);
+    }
   }
 
   function hideMap() { mapEl.classList.remove("show"); }
