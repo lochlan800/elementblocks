@@ -135,6 +135,9 @@
   .thumb.chess  { background: linear-gradient(135deg, #3a4a6e, #11172b); }
   .thumb.money  { background: linear-gradient(135deg, #2e7d32, #1e6b3a 50%, #b8902e); }
   .thumb.cannon { background: linear-gradient(135deg, #ff7a2e, #6c3a1a 60%, #2a3a55); }
+  .thumb.wordle { background: linear-gradient(135deg, #6aaa64, #3a7a4a 55%, #c9b458); }
+  .thumb.uno    { background: linear-gradient(135deg, #d63031, #e1a100 40%, #0984e3 75%, #2d9c3f); }
+  .thumb.guesswho { background: linear-gradient(135deg, #5b57d6, #8a2fb0 60%, #2a2f6e); }
   .thumb.gems   { background: linear-gradient(135deg, #7a2eff, #2e4a8e 55%, #12aabb); }
   .thumb .glyph { filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
 
@@ -337,9 +340,36 @@
       desc: "Tap bricks to fire the cannon, topple the stack, unleash mega bombs.",
       url: "cannon/",
     },
+    {
+      id: "wordle",
+      name: "Wordle",
+      category: "Word",
+      glyph: "🟩",          // 🟩
+      thumb: "wordle",
+      desc: "Guess the hidden five-letter word in six tries.",
+      url: "wordle/",
+    },
+    {
+      id: "uno",
+      name: "Uno",
+      category: "Cards",
+      glyph: "🃏",          // 🃏
+      thumb: "uno",
+      desc: "Match colours and numbers — be first to empty your hand.",
+      url: "uno/",
+    },
+    {
+      id: "guesswho",
+      name: "Guess Who",
+      category: "Party",
+      glyph: "🕵️",          // 🕵️
+      thumb: "guesswho",
+      desc: "Ask yes/no questions to unmask your rival's character.",
+      url: "guesswho/",
+    },
   ];
 
-  const CATEGORY_ORDER = ["Puzzle", "Strategy", "Idle", "Arcade", "Cards"];
+  const CATEGORY_ORDER = ["Puzzle", "Word", "Strategy", "Idle", "Arcade", "Cards", "Party"];
 
   const catalogEl = document.getElementById("catalog");
   const searchEl = document.getElementById("search");

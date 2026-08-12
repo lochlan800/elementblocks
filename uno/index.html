@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uno</title>
+<style>
+  :root {
+    --red: #e4544a;
+    --yellow: #f5c518;
+    --green: #4caf50;
+    --blue: #3f7fd0;
+    --dark: #1c1c28;
+    --felt: #10603a;
+    --felt-2: #0c4c2e;
+    --card-radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: #fff;
+    background: radial-gradient(circle at 50% 40%, var(--felt) 0%, var(--felt-2) 70%, #06301d 100%);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #game {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  /* ---- Opponents bar ---- */
+  #opponents {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 52px 10px 4px;
+    flex-wrap: wrap;
+  }
+  .ai {
+    position: relative;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 12px;
+    min-width: 120px;
+    transition: background 0.25s, box-shadow 0.25s, transform 0.25s;
+  }
+
+  /* ---- Speech bubble ---- */
+  .bubble {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translate(-50%, 8px) scale(0.85);
+    background: #fff;
+    color: #1c1c28;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 7px 13px;
+    border-radius: 14px;
+    box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    z-index: 60;
+  }
+  .bubble::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-top-color: #fff;
+  }
+  .bubble.show {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  .bubble .swatch-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: -1px;
+    border: 1px solid rgba(0,0,0,0.2);
+  }
+  .ai.active {
+    background: rgba(255,255,255,0.14);
+    box-shadow: 0 0 0 2px #fff, 0 0 22px rgba(255,255,255,0.55);
+    transform: translateY(3px);
+  }
+  .ai .name { font-weight: 700; font-size: 15px; }
+  .ai .count { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  .mini-cards {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 6px;
+    height: 34px;
+  }
+  .mini {
+    width: 22px;
+    height: 32px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #222 0%, #111 100%);
+    border: 1.5px solid #555;
+    box-shadow: inset 0 0 0 2px #b02a24;
+    margin-left: -8px;
+  }
+  .mini:first-child { margin-left: 0; }
+  .uno-flag {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #1c1c28;
+    background: var(--yellow);
+    border-radius: 10px;
+    padding: 1px 8px;
+  }
+
+  /* ---- Center table ---- */
+  #table {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    position: relative;
+  }
+  .pile { text-align: center; }
+  .pile-label {
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 8px;
+  }
+
+  .card {
+    width: 90px;
+    height: 132px;
+    border-radius: var(--card-radius);
+    position: relative;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #fff;
+    background: #333;
+    border: 3px solid #fff;
+  }
+  .card .corner {
+    position: absolute;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .card .corner.tl { top: 6px; left: 8px; }
+  .card .corner.br { bottom: 6px; right: 8px; transform: rotate(180deg); }
+  .card .center-val {
+    font-size: 40px;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.25);
+  }
+  .card .oval {
+    position: absolute;
+    width: 62px;
+    height: 96px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 50%;
+    transform: rotate(35deg);
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+  }
+  .card .center-val, .card .corner { z-index: 2; }
+
+  .card.red    { background: var(--red); }
+  .card.yellow { background: var(--yellow); color:#3a2e00;}
+  .card.green  { background: var(--green); }
+  .card.blue   { background: var(--blue); }
+  .card.wild {
+    background: #1c1c28;
+    background: linear-gradient(135deg, var(--red) 0 25%, var(--yellow) 25% 50%, var(--green) 50% 75%, var(--blue) 75% 100%);
+  }
+  .card.yellow .corner, .card.yellow .center-val { color:#3a2e00; }
+
+  /* colored ovals per color for symbol contrast */
+  .card.red .center-val, .card.green .center-val, .card.blue .center-val { color:#fff; }
+  .card.wild .center-val { color:#fff; text-shadow: 0 0 6px #000, 2px 2px 0 rgba(0,0,0,0.5); }
+
+  #draw-pile .card {
+    background: linear-gradient(135deg, #2a2a3a 0%, #14141f 100%);
+    border-color: #fff;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  #draw-pile .card:hover { transform: translateY(-6px) scale(1.03); }
+  #draw-pile .card .logo {
+    font-style: italic;
+    font-weight: 900;
+    font-size: 30px;
+    color: var(--yellow);
+    transform: rotate(-20deg);
+    text-shadow: -2px 2px 0 #b02a24, 0 0 3px #000;
+    letter-spacing: -1px;
+  }
+
+  /* ---- Player hand ---- */
+  #player-area {
+    padding: 6px 10px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  #player-label {
+    font-weight: 700;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+  #player-label.active { color: var(--yellow); }
+  #hand {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    min-height: 150px;
+    padding: 0 10px;
+    max-width: 100vw;
+    flex-wrap: nowrap;
+  }
+  #hand .card {
+    cursor: pointer;
+    transition: transform 0.15s, margin 0.15s, box-shadow 0.15s;
+    margin-left: -26px;
+    flex: 0 0 auto;
+  }
+  #hand .card:first-child { margin-left: 0; }
+  #hand .card:hover { transform: translateY(-18px); z-index: 20 !important; box-shadow: 0 12px 22px rgba(0,0,0,0.55); }
+  #hand .card.playable {
+    box-shadow: 0 0 0 3px #fff, 0 0 16px rgba(255,255,255,0.6);
+  }
+  #hand .card.not-playable { filter: brightness(0.6) saturate(0.7); cursor: not-allowed; }
+
+  /* ---- Controls ---- */
+  #controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button.btn {
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    color: #1c1c28;
+    background: var(--yellow);
+    border: none;
+    border-radius: 20px;
+    padding: 9px 20px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #b8940f;
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  button.btn:active { transform: translateY(3px); box-shadow: 0 0 0 #b8940f; }
+  button.btn.secondary { background: #cfd8e3; box-shadow: 0 3px 0 #8a95a3; }
+  button.btn.uno { background: var(--red); color:#fff; box-shadow: 0 3px 0 #8a1f1a;}
+  button.btn:disabled { opacity: 0.4; cursor: default; box-shadow:none; transform:none;}
+
+  /* ---- Message / log ---- */
+  #status {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    font-size: 13px;
+    max-width: 260px;
+    opacity: 0.85;
+  }
+  #log {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 230px;
+    max-height: 180px;
+    overflow: hidden;
+    font-size: 12px;
+    text-align: right;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+  #log div { margin-bottom: 2px; animation: fade 0.4s; }
+  @keyframes fade { from { opacity: 0; transform: translateX(12px);} to {opacity:0.8;} }
+
+  /* ---- Center toast ---- */
+  #toast {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%,-50%) scale(0.6);
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+    text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+  /* ---- Color picker overlay ---- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .overlay.show { display: flex; }
+  .overlay h2 { margin: 0; font-size: 26px; }
+  #color-choices { display: flex; gap: 18px; }
+  .swatch {
+    width: 84px; height: 84px; border-radius: 14px; cursor: pointer;
+    border: 4px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: transform 0.12s;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.red { background: var(--red);} .swatch.yellow{background:var(--yellow);}
+  .swatch.green{background:var(--green);} .swatch.blue{background:var(--blue);}
+
+  /* ---- Game over ---- */
+  #gameover { text-align: center; gap: 24px; }
+  #gameover h1 { font-size: 48px; margin: 0; }
+  #gameover p { font-size: 18px; opacity: 0.9; margin: 0; }
+
+  @media (max-width: 720px) {
+    .card { width: 62px; height: 92px; }
+    .card .center-val { font-size: 28px; }
+    #hand .card { margin-left: -34px; }
+    .ai { min-width: 90px; }
+    #log { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+
+  <div id="status"></div>
+  <div id="log"></div>
+
+  <div id="opponents"></div>
+
+  <div id="table">
+    <div class="pile" id="draw-pile">
+      <div class="pile-label">Draw</div>
+      <div class="card" id="draw-card" title="Draw a card">
+        <div class="logo">UNO</div>
+      </div>
+    </div>
+    <div class="pile" id="discard-pile">
+      <div class="pile-label">Discard</div>
+      <div id="discard-card"></div>
+    </div>
+  </div>
+
+  <div id="player-area">
+    <div id="controls">
+      <button class="btn uno" id="btn-uno">Call UNO!</button>
+      <button class="btn secondary" id="btn-draw">Draw Card</button>
+      <button class="btn" id="btn-new" style="display:none">New Game</button>
+    </div>
+    <div id="player-label">Your hand</div>
+    <div id="hand"></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<!-- Color picker -->
+<div class="overlay" id="color-overlay">
+  <h2>Choose a color</h2>
+  <div id="color-choices">
+    <div class="swatch red"    data-color="red"></div>
+    <div class="swatch yellow" data-color="yellow"></div>
+    <div class="swatch green"  data-color="green"></div>
+    <div class="swatch blue"   data-color="blue"></div>
+  </div>
+</div>
+
+<!-- Game over -->
+<div class="overlay" id="gameover">
+  <h1 id="go-title"></h1>
+  <p id="go-sub"></p>
+  <button class="btn" id="go-new">Play Again</button>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   UNO — single file game
+   Human player (index 0) vs 3 AI opponents.
+   ============================================================ */
+
+const COLORS = ["red", "yellow", "green", "blue"];
+const SYMBOL = { skip: "⊘", reverse: "⇄", draw2: "+2", wild: "W", wild4: "+4" };
+
+// Pacing (ms). Higher = slower, more relaxed play.
+const SPEED = {
+  think: 1100,   // pause before an AI plays its card
+  turn:  1500,   // pause after a card resolves, before the next turn
+  quick: 850,    // small pauses (your own draw / pass)
+  bubble: 2600,  // how long a speech bubble stays up
+};
+
+// ---- Deck construction (standard 108-card Uno deck) ----
+function buildDeck() {
+  const deck = [];
+  for (const color of COLORS) {
+    deck.push({ color, kind: "num", value: 0 });          // one 0
+    for (let v = 1; v <= 9; v++) {                         // two of 1-9
+      deck.push({ color, kind: "num", value: v });
+      deck.push({ color, kind: "num", value: v });
+    }
+    for (const k of ["skip", "reverse", "draw2"]) {        // two of each action
+      deck.push({ color, kind: k });
+      deck.push({ color, kind: k });
+    }
+  }
+  for (let i = 0; i < 4; i++) {                            // 4 wild, 4 wild+4
+    deck.push({ color: "wild", kind: "wild" });
+    deck.push({ color: "wild", kind: "wild4" });
+  }
+  return deck;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ---- Game state ----
+const PLAYERS = [
+  { name: "You",   human: true },
+  { name: "Rosa",  human: false },
+  { name: "Milo",  human: false },
+  { name: "Ada",   human: false },
+];
+
+let state = null;
+
+function newGame() {
+  buildOpponents();
+  const deck = shuffle(buildDeck());
+  const hands = PLAYERS.map(() => []);
+  for (let i = 0; i < 7; i++) {
+    for (let p = 0; p < PLAYERS.length; p++) hands[p].push(deck.pop());
+  }
+  // First discard: draw until a non-wild-action-friendly card; keep it simple — reshuffle wild4 back
+  let first = deck.pop();
+  while (first.kind === "wild4") { deck.unshift(first); first = deck.pop(); }
+
+  state = {
+    deck,
+    discard: [first],
+    hands,
+    turn: 0,
+    dir: 1,                 // 1 clockwise, -1 counter
+    activeColor: first.color === "wild" ? COLORS[Math.floor(Math.random()*4)] : first.color,
+    pendingDraw: 0,         // stacked draw amount to apply
+    saidUno: [false,false,false,false],
+    over: false,
+    busy: false,
+  };
+
+  // Apply the effect of the very first card (simplified official rules)
+  const fc = first;
+  if (fc.kind === "skip")    { advance(); log(`First card Skip — ${PLAYERS[0].name==='You'?'you skip':''} ${PLAYERS[state.turn].name}'s turn skipped`); }
+  else if (fc.kind === "reverse") { state.dir = -1; state.turn = PLAYERS.length - 1; }
+  else if (fc.kind === "draw2") { state.pendingDraw = 2; }
+  else if (fc.color === "wild") { /* color chosen randomly above */ }
+
+  render();
+  scheduleLoop(SPEED.turn);
+}
+
+// ---- Rules helpers ----
+function topCard() { return state.discard[state.discard.length - 1]; }
+
+function canPlay(card, forDrawStack) {
+  const top = topCard();
+  // If there is a pending draw stack, only same-type stackers allowed.
+  if (state.pendingDraw > 0) {
+    if (top.kind === "draw2") return card.kind === "draw2";
+    if (top.kind === "wild4") return card.kind === "wild4";
+  }
+  if (card.color === "wild") return true;
+  if (card.color === state.activeColor) return true;
+  if (card.kind === "num" && top.kind === "num" && card.value === top.value) return true;
+  if (card.kind !== "num" && card.kind === top.kind) return true;
+  return false;
+}
+
+function hasAnyPlay(hand) {
+  return hand.some(c => canPlay(c));
+}
+
+function advance() {
+  state.turn = (state.turn + state.dir + PLAYERS.length) % PLAYERS.length;
+}
+
+function drawFromDeck(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    if (state.deck.length === 0) reshuffle();
+    if (state.deck.length === 0) break;
+    out.push(state.deck.pop());
+  }
+  return out;
+}
+
+function reshuffle() {
+  if (state.discard.length <= 1) return;
+  const top = state.discard.pop();
+  const recycled = state.discard;
+  state.discard = [top];
+  // Reset wild colors back to wild when recycled
+  for (const c of recycled) { if (c.kind === "wild" || c.kind === "wild4") c.color = "wild"; }
+  state.deck = shuffle(recycled);
+  log("Deck reshuffled");
+}
+
+// ---- Playing a card ----
+function playCard(playerIdx, cardIdx, chosenColor) {
+  const hand = state.hands[playerIdx];
+  const card = hand[cardIdx];
+  hand.splice(cardIdx, 1);
+  state.discard.push(card);
+
+  // set active color
+  if (card.color === "wild") {
+    card.color = chosenColor;         // record chosen color on the card for display
+    state.activeColor = chosenColor;
+  } else {
+    state.activeColor = card.color;
+  }
+
+  // reset uno flag if now >1 card again handled elsewhere
+  log(`${PLAYERS[playerIdx].name} played ${cardName(card)}`);
+
+  // Auto-clear stale uno flags
+  if (hand.length !== 1) state.saidUno[playerIdx] = false;
+
+  // Opponent announces its move via a speech bubble.
+  if (playerIdx !== 0) {
+    const uno = hand.length === 1 ? "  ·  UNO!" : "";
+    showBubble(playerIdx, playPhrase(card) + uno, card.color === "wild" ? null : card.color);
+  }
+
+  // Win check
+  if (hand.length === 0) {
+    if (playerIdx !== 0) showBubble(playerIdx, playPhrase(card) + "  ·  I win! 🎉", card.color === "wild" ? null : card.color);
+    endGame(playerIdx);
+    return;
+  }
+
+  applyEffectAndAdvance(card);
+}
+
+function applyEffectAndAdvance(card) {
+  switch (card.kind) {
+    case "skip":
+      advance();
+      flashToast(`${PLAYERS[state.turn].name} skipped!`);
+      advance();
+      break;
+    case "reverse":
+      state.dir *= -1;
+      if (PLAYERS.length === 2) advance(); // acts like skip in 2p (not used here)
+      advance();
+      break;
+    case "draw2":
+      state.pendingDraw += 2;
+      advance();
+      break;
+    case "wild4":
+      state.pendingDraw += 4;
+      advance();
+      break;
+    default:
+      advance();
+  }
+  render();
+  scheduleLoop(state.over ? 0 : SPEED.turn);
+}
+
+// Resolve a forced draw for the player whose turn it is (if they cannot/So not stack)
+function resolvePendingDraw(playerIdx) {
+  const n = state.pendingDraw;
+  const cards = drawFromDeck(n);
+  state.hands[playerIdx].push(...cards);
+  state.pendingDraw = 0;
+  flashToast(`${PLAYERS[playerIdx].name} draws ${n}`);
+  log(`${PLAYERS[playerIdx].name} drew ${n} card${n>1?"s":""}`);
+  state.saidUno[playerIdx] = false;
+  if (playerIdx !== 0) showBubble(playerIdx, `Ouch — +${n}`);
+}
+
+// ---- Main loop: drives AI turns, waits on human ----
+// Only one loop timer may ever be pending; otherwise stacked callbacks could
+// run loop() twice for the same turn and double-play a card.
+let loopTimer = null;
+function scheduleLoop(delay) {
+  clearTimeout(loopTimer);
+  loopTimer = setTimeout(loop, delay);
+}
+
+function loop() {
+  loopTimer = null;
+  if (state.over) return;
+  const idx = state.turn;
+  const player = PLAYERS[idx];
+
+  // Handle stacked draw resolution at start of a player's turn:
+  if (state.pendingDraw > 0) {
+    const canStack = state.hands[idx].some(c => canPlay(c, true));
+    if (!canStack) {
+      resolvePendingDraw(idx);
+      render();
+      advance();
+      scheduleLoop(SPEED.turn);
+      return;
+    }
+    // else: player may choose to stack (AI decides below, human via UI)
+  }
+
+  if (player.human) {
+    state.drewThisTurn = false;
+    render();
+    // Wait for user input. Enable/disable controls handled in render().
+    return;
+  }
+
+  render();
+  // AI turn
+  state.busy = true;
+  setTimeout(() => aiTurn(idx), SPEED.think);
+}
+
+function aiTurn(idx) {
+  const hand = state.hands[idx];
+
+  // If pending draw and can stack, decide to stack (simple: always stack if possible)
+  const playableIdxs = hand.map((c,i)=>({c,i})).filter(o => canPlay(o.c));
+  if (playableIdxs.length === 0) {
+    // must draw
+    if (state.pendingDraw > 0) { resolvePendingDraw(idx); render(); state.busy=false; advance(); scheduleLoop(SPEED.turn); return; }
+    showBubble(idx, "Hmm, I'll draw…");
+    const drawn = drawFromDeck(1);
+    hand.push(...drawn);
+    log(`${PLAYERS[idx].name} drew a card`);
+    render();
+    // can the drawn card be played?
+    if (drawn[0] && canPlay(drawn[0])) {
+      setTimeout(() => {
+        const ci = hand.indexOf(drawn[0]);
+        if (ci < 0) { state.busy = false; advance(); scheduleLoop(SPEED.turn); return; }
+        const color = drawn[0].color === "wild" ? aiChooseColor(hand) : null;
+        maybeCallUno(idx);
+        state.busy = false;
+        playCard(idx, ci, color);
+      }, SPEED.think);
+    } else {
+      state.busy = false;
+      advance();
+      scheduleLoop(SPEED.turn);
+    }
+    return;
+  }
+
+  // Choose best card: prefer action cards / matching color, dump high numbers
+  const pick = aiPickCard(playableIdxs, hand);
+  const card = hand[pick];
+  const color = card.color === "wild" ? aiChooseColor(hand) : null;
+  maybeCallUno(idx);
+  state.busy = false;
+  playCard(idx, pick, color);
+}
+
+function aiPickCard(playableIdxs, hand) {
+  // Score: action cards higher (offense), then match current color, then high value
+  function score(c) {
+    let s = 0;
+    if (c.kind === "wild4") s = 8;
+    else if (c.kind === "draw2") s = 7;
+    else if (c.kind === "skip") s = 6;
+    else if (c.kind === "reverse") s = 5;
+    else if (c.kind === "wild") s = 2; // save wilds a bit
+    else s = 1 + (c.value / 20);
+    // prefer keeping color we have most of
+    return s;
+  }
+  playableIdxs.sort((a,b) => score(b.c) - score(a.c));
+  return playableIdxs[0].i;
+}
+
+function aiChooseColor(hand) {
+  const counts = { red:0, yellow:0, green:0, blue:0 };
+  for (const c of hand) if (counts[c.color] !== undefined) counts[c.color]++;
+  let best = "red", bestN = -1;
+  for (const col of COLORS) if (counts[col] > bestN) { bestN = counts[col]; best = col; }
+  return best;
+}
+
+function maybeCallUno(idx) {
+  if (state.hands[idx].length === 2) { // about to play down to 1
+    state.saidUno[idx] = true; // the "UNO!" is announced in the play bubble
+  }
+}
+
+// ---- Human interactions ----
+function humanPlay(cardIdx) {
+  if (state.over || state.busy) return;
+  if (state.turn !== 0) return;
+  const card = state.hands[0][cardIdx];
+  if (!canPlay(card)) return;
+
+  const doPlay = (color) => {
+    state.drewThisTurn = false;
+    // If playing down to 1 card and hasn't called Uno -> penalty
+    if (state.hands[0].length === 2 && !state.saidUno[0]) {
+      // draw 2 penalty for forgetting Uno
+      flashToast("Forgot UNO! +2");
+      const pen = drawFromDeck(2);
+      state.hands[0].push(...pen);
+      log("You forgot to call UNO — drew 2");
+    }
+    playCard(0, cardIdx, color);
+  };
+
+  if (card.color === "wild") {
+    openColorPicker((color) => doPlay(color));
+  } else {
+    doPlay(null);
+  }
+}
+
+function humanDraw() {
+  if (state.over || state.busy || state.turn !== 0) return;
+
+  if (state.pendingDraw > 0) {
+    resolvePendingDraw(0);
+    render();
+    advance();
+    scheduleLoop(SPEED.quick);
+    return;
+  }
+
+  // Second click after already drawing this turn = pass.
+  if (state.drewThisTurn) {
+    state.drewThisTurn = false;
+    log("You passed");
+    advance();
+    scheduleLoop(SPEED.quick);
+    return;
+  }
+
+  const drawn = drawFromDeck(1);
+  state.hands[0].push(...drawn);
+  state.saidUno[0] = false;
+  log("You drew a card");
+
+  // Standard rule: after drawing you may play that card if legal, otherwise turn passes.
+  if (drawn[0] && canPlay(drawn[0])) {
+    state.drewThisTurn = true;
+    flashToast("Playable — click it, or Draw again to pass");
+    render();
+  } else {
+    render();
+    advance();
+    scheduleLoop(SPEED.quick);
+  }
+}
+
+function humanCallUno() {
+  if (state.turn !== 0) return;
+  if (state.hands[0].length <= 2) {
+    state.saidUno[0] = true;
+    flashToast("UNO!");
+    log("You called UNO!");
+    render();
+  }
+}
+
+// ---- End game ----
+function endGame(winnerIdx) {
+  state.over = true;
+  render();
+  const isYou = winnerIdx === 0;
+  setTimeout(() => {
+    document.getElementById("go-title").textContent = isYou ? "You Win! 🎉" : `${PLAYERS[winnerIdx].name} Wins`;
+    document.getElementById("go-sub").textContent = isYou
+      ? "Nicely played."
+      : "Better luck next round.";
+    document.getElementById("gameover").classList.add("show");
+  }, 600);
+}
+
+// ============================================================
+//  Rendering
+// ============================================================
+function cardName(card) {
+  if (card.kind === "num") return `${cap(card.color)} ${card.value}`;
+  if (card.kind === "skip") return `${cap(card.color)} Skip`;
+  if (card.kind === "reverse") return `${cap(card.color)} Reverse`;
+  if (card.kind === "draw2") return `${cap(card.color)} Draw Two`;
+  if (card.kind === "wild") return `Wild`;
+  if (card.kind === "wild4") return `Wild Draw Four`;
+  return "card";
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function cardFaceHTML(card) {
+  let val;
+  if (card.kind === "num") val = card.value;
+  else if (card.kind === "skip") val = SYMBOL.skip;
+  else if (card.kind === "reverse") val = SYMBOL.reverse;
+  else if (card.kind === "draw2") val = "+2";
+  else if (card.kind === "wild") val = "★";
+  else if (card.kind === "wild4") val = "+4";
+
+  const colorClass = card.color === "wild" ? "wild" : card.color;
+  return `
+    <div class="card ${colorClass}">
+      <div class="oval"></div>
+      <div class="corner tl">${val}</div>
+      <div class="center-val">${val}</div>
+      <div class="corner br">${val}</div>
+    </div>`;
+}
+
+// Build the opponent panels once so each keeps a persistent speech-bubble
+// element that render() won't wipe out.
+let aiEls = [];
+function buildOpponents() {
+  const opp = document.getElementById("opponents");
+  opp.innerHTML = "";
+  aiEls = [];
+  for (let i = 0; i < PLAYERS.length; i++) {
+    if (i === 0) { aiEls.push(null); continue; }
+    const div = document.createElement("div");
+    div.className = "ai";
+    div.innerHTML = `
+      <div class="bubble"></div>
+      <div class="name">${PLAYERS[i].name}</div>
+      <div class="mini-cards"></div>
+      <div class="count"></div>
+      <div class="uno-slot"></div>`;
+    opp.appendChild(div);
+    aiEls.push({
+      root:    div,
+      bubble:  div.querySelector(".bubble"),
+      minis:   div.querySelector(".mini-cards"),
+      count:   div.querySelector(".count"),
+      unoSlot: div.querySelector(".uno-slot"),
+    });
+  }
+}
+
+const bubbleTimers = {};
+function showBubble(idx, text, color) {
+  const el = aiEls[idx];
+  if (!el) return; // no bubble for the human
+  const dot = color ? `<span class="swatch-dot" style="background:var(--${color})"></span>` : "";
+  el.bubble.innerHTML = dot + text;
+  el.bubble.classList.add("show");
+  clearTimeout(bubbleTimers[idx]);
+  bubbleTimers[idx] = setTimeout(() => el.bubble.classList.remove("show"), SPEED.bubble);
+}
+
+// What an opponent "says" when playing a card.
+function playPhrase(card) {
+  switch (card.kind) {
+    case "num":     return `${cap(card.color)} ${card.value}`;
+    case "skip":    return "Skip you!";
+    case "reverse": return "Reverse!";
+    case "draw2":   return "Draw two!";
+    case "wild":    return `Wild — ${cap(card.color)}`;
+    case "wild4":   return `Draw four — ${cap(card.color)}!`;
+  }
+  return "…";
+}
+
+function render() {
+  // Opponents (update in place)
+  for (let i = 1; i < PLAYERS.length; i++) {
+    const el = aiEls[i];
+    if (!el) continue;
+    const n = state.hands[i].length;
+    el.root.classList.toggle("active", state.turn === i);
+    el.minis.innerHTML = Array.from({length: Math.min(n, 10)}).map(()=>`<div class="mini"></div>`).join("");
+    el.count.textContent = `${n} card${n!==1?"s":""}`;
+    el.unoSlot.innerHTML = (n === 1 && state.saidUno[i]) ? `<div class="uno-flag">UNO</div>` : "";
+  }
+
+  // Discard
+  const top = topCard();
+  document.getElementById("discard-card").innerHTML = cardFaceHTML(top);
+  // reflect active color ring on discard
+  const dc = document.querySelector("#discard-card .card");
+  if (dc && top.color === "wild") {
+    dc.style.boxShadow = `0 0 0 5px var(--${state.activeColor}), 0 6px 14px rgba(0,0,0,0.4)`;
+  }
+
+  // Player hand
+  const handEl = document.getElementById("hand");
+  handEl.innerHTML = "";
+  const hand = state.hands[0];
+  const yourTurn = state.turn === 0 && !state.over && !state.busy;
+  hand.forEach((card, idx) => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = cardFaceHTML(card);
+    const el = wrap.firstElementChild;
+    el.style.zIndex = idx;
+    const playable = canPlay(card);
+    if (yourTurn) {
+      el.classList.add(playable ? "playable" : "not-playable");
+    }
+    el.addEventListener("click", () => humanPlay(idx));
+    handEl.appendChild(el);
+  });
+
+  // Player label + controls
+  const label = document.getElementById("player-label");
+  label.textContent = yourTurn ? "Your turn — play a card" : "Your hand";
+  label.classList.toggle("active", yourTurn);
+
+  document.getElementById("btn-draw").disabled = !yourTurn;
+  document.getElementById("btn-uno").disabled = !(state.turn === 0 && state.hands[0].length <= 2 && !state.over);
+  document.getElementById("btn-draw").textContent =
+    (yourTurn && state.pendingDraw > 0) ? `Draw ${state.pendingDraw}`
+    : (yourTurn && state.drewThisTurn) ? "Pass"
+    : "Draw Card";
+
+  // Status
+  const dir = state.dir === 1 ? "↻ clockwise" : "↺ counter-clockwise";
+  document.getElementById("status").innerHTML =
+    `Active color: <b style="color:var(--${state.activeColor})">${cap(state.activeColor)}</b><br>` +
+    `Direction: ${dir}<br>` +
+    `Deck: ${state.deck.length} cards` +
+    (state.pendingDraw > 0 ? `<br><b style="color:var(--red)">Stacked draw: +${state.pendingDraw}</b>` : "");
+
+  document.getElementById("btn-new").style.display = state.over ? "inline-block" : "none";
+}
+
+// ---- Toast / log ----
+let toastTimer = null;
+function flashToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 900);
+}
+function log(msg) {
+  const l = document.getElementById("log");
+  const d = document.createElement("div");
+  d.textContent = msg;
+  l.prepend(d);
+  while (l.children.length > 8) l.removeChild(l.lastChild);
+}
+
+// ---- Color picker ----
+let colorCallback = null;
+function openColorPicker(cb) {
+  colorCallback = cb;
+  document.getElementById("color-overlay").classList.add("show");
+}
+document.querySelectorAll(".swatch").forEach(sw => {
+  sw.addEventListener("click", () => {
+    document.getElementById("color-overlay").classList.remove("show");
+    const cb = colorCallback; colorCallback = null;
+    if (cb) cb(sw.dataset.color);
+  });
+});
+
+// ---- Wiring ----
+document.getElementById("draw-card").addEventListener("click", humanDraw);
+document.getElementById("btn-draw").addEventListener("click", humanDraw);
+document.getElementById("btn-uno").addEventListener("click", humanCallUno);
+document.getElementById("btn-new").addEventListener("click", startFresh);
+document.getElementById("go-new").addEventListener("click", startFresh);
+
+function startFresh() {
+  document.getElementById("gameover").classList.remove("show");
+  document.getElementById("log").innerHTML = "";
+  newGame();
+}
+
+// Boot
+newGame();
+</script>
+</body>
+</html>

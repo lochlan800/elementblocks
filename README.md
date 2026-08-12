@@ -21,9 +21,12 @@ install or build step needed.
 | --- | --- | --- |
 | **Element Blocks** | Puzzle | `elementblocks.html` in this repo |
 | **Gem Swap** | Puzzle | `gems/` in this repo |
+| **Wordle** | Word | `wordle/` in this repo (copied from [`Wordle`](https://github.com/lochlan800/Wordle)) |
 | **Chess** | Strategy | the separate [`Chess-`](https://github.com/lochlan800/Chess-) repo, loaded from its live site |
 | **Money Clicker** | Idle | `clicker/` in this repo |
 | **Cannon Smash** | Arcade | `cannon/` in this repo |
+| **Uno** | Cards | `uno/` in this repo (copied from [`Uno`](https://github.com/lochlan800/Uno)) |
+| **Guess Who** | Party | `guesswho/` in this repo (copied from [`Guess-who`](https://github.com/lochlan800/Guess-who)) |
 
 ### Adding a game
 

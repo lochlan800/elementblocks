@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wordle — Members' Club</title>
+<style>
+  :root {
+    --gold: #c9a24b;
+    --gold-soft: #f1d27a;
+    --gold-deep: #9c7a2e;
+    --color-correct: #538d4e;
+    --color-present: #b59f3b;
+    --color-absent: #3a3a3c;
+    --bg: #0e0e10;
+    --bg-panel: #141416;
+    --border: #2a2a2e;
+    --border-filled: #4a4a50;
+    --text: #ece7da;
+    --text-dim: #8a8678;
+    --key-bg: #26262a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(201,162,75,0.10), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    user-select: none;
+  }
+
+  header {
+    width: 100%;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    padding: 16px 0 12px;
+    background: linear-gradient(180deg, rgba(201,162,75,0.05), transparent);
+  }
+
+  .eyebrow {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 4px;
+    padding-left: 0.42em;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 2.1rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--text);
+  }
+
+  .rule {
+    width: 64px;
+    height: 1px;
+    margin: 8px auto 4px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  .tagline {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 2px 0 0;
+  }
+
+  #game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    max-width: 500px;
+    width: 100%;
+    padding: 10px 0;
+  }
+
+  #board-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+  }
+
+  #board {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr);
+    gap: 6px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+
+  .tile {
+    width: 62px;
+    height: 62px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text);
+    transition: transform 0.1s ease;
+  }
+
+  .tile.filled {
+    border-color: var(--border-filled);
+    animation: pop 0.1s ease;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  .tile.correct {
+    background: var(--color-correct);
+    border-color: var(--color-correct);
+    color: #ffffff;
+  }
+
+  .tile.present {
+    background: var(--color-present);
+    border-color: var(--color-present);
+    color: #ffffff;
+  }
+
+  .tile.absent {
+    background: var(--color-absent);
+    border-color: var(--color-absent);
+    color: #ffffff;
+  }
+
+  .tile.reveal {
+    animation: flip 0.55s ease forwards;
+  }
+
+  @keyframes flip {
+    0% { transform: rotateX(0); }
+    50% { transform: rotateX(-90deg); }
+    100% { transform: rotateX(0); }
+  }
+
+  /* Correct tiles get a little celebratory pulse after the flip */
+  .tile.reveal.correct {
+    animation: flip 0.55s ease forwards, correctPulse 0.5s ease 0.55s;
+  }
+
+  @keyframes correctPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 rgba(83,141,78,0); }
+    50% { transform: scale(1.09); box-shadow: 0 0 16px rgba(83,141,78,0.7); }
+    100% { transform: scale(1); box-shadow: 0 0 0 rgba(83,141,78,0); }
+  }
+
+  .row.shake {
+    animation: shake 0.5s;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+  }
+
+  #keyboard {
+    width: 100%;
+    max-width: 500px;
+    padding: 0 8px;
+    margin-bottom: 8px;
+  }
+
+  .keyboard-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    touch-action: manipulation;
+  }
+
+  .key {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 1px solid #303035;
+    border-radius: 5px;
+    background: var(--key-bg);
+    color: var(--text);
+    height: 58px;
+    flex: 1;
+    min-width: 0;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.05s ease;
+  }
+
+  .key.wide {
+    flex: 1.5;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+  }
+
+  .key:active { transform: scale(0.95); opacity: 0.85; }
+
+  .key.correct {
+    background: var(--color-correct);
+    border-color: var(--color-correct);
+    color: #ffffff;
+  }
+  .key.present {
+    background: var(--color-present);
+    border-color: var(--color-present);
+    color: #ffffff;
+  }
+  .key.absent { background: var(--color-absent); border-color: var(--color-absent); color: #ffffff; }
+
+  #message {
+    position: fixed;
+    top: 96px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-panel);
+    color: var(--gold-soft);
+    border: 1px solid var(--gold-deep);
+    padding: 12px 22px;
+    border-radius: 4px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+    text-align: center;
+  }
+
+  #message.show { opacity: 1; }
+
+  #play-again {
+    margin-top: 10px;
+    padding: 11px 26px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    border: 1px solid var(--gold);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--gold-soft);
+    cursor: pointer;
+    display: none;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  #play-again:hover {
+    background: var(--gold);
+    color: #1a1407;
+  }
+
+  footer {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 10px 0 16px;
+  }
+
+  @media (max-width: 360px) {
+    .tile { width: 50px; height: 50px; font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Members Only</p>
+    <h1>WORDLE</h1>
+    <div class="rule"></div>
+    <p class="tagline">The Private Lexicon Club</p>
+  </header>
+
+  <div id="message"></div>
+
+  <div id="game">
+    <div id="board-container">
+      <div id="board"></div>
+    </div>
+
+    <button id="play-again">Request Another</button>
+
+    <div id="keyboard"></div>
+  </div>
+
+  <footer>Est. MMXXVI · By Invitation</footer>
+
+<script src="dictionary.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // A pool of valid 5-letter answer words. The secret is chosen at random.
+  const WORDS = [
+    "apple", "beach", "brain", "bread", "brush", "chair", "chest", "chord",
+    "click", "clock", "cloud", "dance", "diary", "drink", "earth", "fault",
+    "feast", "field", "flame", "flute", "frame", "ghost", "grape", "grass",
+    "green", "happy", "heart", "horse", "house", "juice", "knife", "lemon",
+    "light", "lucky", "magic", "mango", "money", "mouse", "music", "night",
+    "ocean", "paint", "panic", "peace", "piano", "pizza", "plant", "pride",
+    "queen", "quiet", "river", "robot", "scale", "shark", "sheep", "shine",
+    "shore", "smile", "smoke", "snake", "spice", "spine", "stone", "storm",
+    "sugar", "sunny", "sweet", "table", "tiger", "toast", "tooth", "torch",
+    "train", "trust", "vivid", "voice", "watch", "water", "whale", "wheat",
+    "world", "youth", "zebra", "blaze", "candy", "crane", "dream", "eagle",
+    "fairy", "globe", "honey", "ivory", "jolly", "koala", "lunar", "maple"
+  ];
+
+  const ROWS = 6;
+  const COLS = 5;
+
+  // Set of valid guess words (loaded from dictionary.js). Answer words are
+  // always included so the secret is itself a legal guess.
+  const VALID_WORDS = new Set(
+    (window.WORDLE_DICTIONARY || []).concat(WORDS)
+  );
+
+  let secret = "";
+  let currentRow = 0;
+  let currentCol = 0;
+  let guess = "";
+  let gameOver = false;
+  const keyState = {}; // letter -> best state
+
+  const boardEl = document.getElementById("board");
+  const keyboardEl = document.getElementById("keyboard");
+  const messageEl = document.getElementById("message");
+  const playAgainBtn = document.getElementById("play-again");
+
+  const KEYBOARD_LAYOUT = [
+    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+    ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+    ["enter", "z", "x", "c", "v", "b", "n", "m", "back"]
+  ];
+
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    for (let r = 0; r < ROWS; r++) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.dataset.row = r;
+      for (let c = 0; c < COLS; c++) {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.dataset.row = r;
+        tile.dataset.col = c;
+        row.appendChild(tile);
+      }
+      boardEl.appendChild(row);
+    }
+  }
+
+  function buildKeyboard() {
+    keyboardEl.innerHTML = "";
+    KEYBOARD_LAYOUT.forEach(function (rowKeys) {
+      const row = document.createElement("div");
+      row.className = "keyboard-row";
+      rowKeys.forEach(function (key) {
+        const btn = document.createElement("button");
+        btn.className = "key";
+        btn.dataset.key = key;
+        if (key === "enter" || key === "back") {
+          btn.classList.add("wide");
+          btn.textContent = key === "enter" ? "Enter" : "⌫";
+        } else {
+          btn.textContent = key;
+        }
+        btn.addEventListener("click", function () {
+          handleKey(key);
+        });
+        row.appendChild(btn);
+      });
+      keyboardEl.appendChild(row);
+    });
+  }
+
+  function showMessage(text, duration) {
+    messageEl.textContent = text;
+    messageEl.classList.add("show");
+    if (duration) {
+      setTimeout(function () {
+        messageEl.classList.remove("show");
+      }, duration);
+    }
+  }
+
+  function getTile(r, c) {
+    return boardEl.querySelector('.tile[data-row="' + r + '"][data-col="' + c + '"]');
+  }
+
+  function handleKey(key) {
+    if (gameOver) return;
+
+    if (key === "enter") {
+      submitGuess();
+    } else if (key === "back") {
+      deleteLetter();
+    } else if (/^[a-z]$/.test(key)) {
+      addLetter(key);
+    }
+  }
+
+  function addLetter(letter) {
+    if (currentCol >= COLS) return;
+    guess += letter;
+    const tile = getTile(currentRow, currentCol);
+    tile.textContent = letter;
+    tile.classList.add("filled");
+    currentCol++;
+  }
+
+  function deleteLetter() {
+    if (currentCol <= 0) return;
+    currentCol--;
+    guess = guess.slice(0, -1);
+    const tile = getTile(currentRow, currentCol);
+    tile.textContent = "";
+    tile.classList.remove("filled");
+  }
+
+  function submitGuess() {
+    if (currentCol < COLS) {
+      shakeRow();
+      showMessage("Not enough letters", 1000);
+      return;
+    }
+
+    if (!VALID_WORDS.has(guess)) {
+      shakeRow();
+      showMessage("Not in word list", 1200);
+      return;
+    }
+
+    const result = evaluateGuess(guess, secret);
+    revealRow(result);
+  }
+
+  // Returns an array of states: "correct" | "present" | "absent"
+  function evaluateGuess(g, answer) {
+    const result = new Array(COLS).fill("absent");
+    const answerLetters = answer.split("");
+    const used = new Array(COLS).fill(false);
+
+    // First pass: correct positions
+    for (let i = 0; i < COLS; i++) {
+      if (g[i] === answerLetters[i]) {
+        result[i] = "correct";
+        used[i] = true;
+      }
+    }
+
+    // Second pass: present but wrong position
+    for (let i = 0; i < COLS; i++) {
+      if (result[i] === "correct") continue;
+      for (let j = 0; j < COLS; j++) {
+        if (!used[j] && g[i] === answerLetters[j]) {
+          result[i] = "present";
+          used[j] = true;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  function revealRow(result) {
+    gameOver = true; // lock input during animation
+    const row = currentRow;
+    const submittedGuess = guess;
+
+    for (let i = 0; i < COLS; i++) {
+      (function (i) {
+        setTimeout(function () {
+          const tile = getTile(row, i);
+          tile.classList.add("reveal", result[i]);
+          updateKeyState(submittedGuess[i], result[i]);
+
+          if (i === COLS - 1) {
+            finishRow(result, submittedGuess);
+          }
+        }, i * 300);
+      })(i);
+    }
+  }
+
+  function finishRow(result, submittedGuess) {
+    setTimeout(function () {
+      paintKeyboard();
+
+      const won = result.every(function (s) { return s === "correct"; });
+
+      if (won) {
+        const messages = ["Exquisite.", "Distinguished.", "Refined.", "Commendable.", "Acceptable.", "Just in time."];
+        showMessage(messages[currentRow] || "Well played.", 3000);
+        endGame();
+      } else if (currentRow >= ROWS - 1) {
+        showMessage("The word was: " + secret.toUpperCase(), 0);
+        endGame();
+      } else {
+        // continue to next row
+        currentRow++;
+        currentCol = 0;
+        guess = "";
+        gameOver = false;
+      }
+    }, 300);
+  }
+
+  function endGame() {
+    gameOver = true;
+    playAgainBtn.style.display = "inline-block";
+  }
+
+  function updateKeyState(letter, state) {
+    const priority = { absent: 0, present: 1, correct: 2 };
+    const current = keyState[letter];
+    if (current === undefined || priority[state] > priority[current]) {
+      keyState[letter] = state;
+    }
+  }
+
+  function paintKeyboard() {
+    Object.keys(keyState).forEach(function (letter) {
+      const btn = keyboardEl.querySelector('.key[data-key="' + letter + '"]');
+      if (btn) {
+        btn.classList.remove("correct", "present", "absent");
+        btn.classList.add(keyState[letter]);
+      }
+    });
+  }
+
+  function shakeRow() {
+    const row = boardEl.querySelector('.row[data-row="' + currentRow + '"]');
+    row.classList.add("shake");
+    setTimeout(function () {
+      row.classList.remove("shake");
+    }, 500);
+  }
+
+  function newGame() {
+    secret = WORDS[Math.floor(Math.random() * WORDS.length)];
+    currentRow = 0;
+    currentCol = 0;
+    guess = "";
+    gameOver = false;
+    for (const k in keyState) delete keyState[k];
+    playAgainBtn.style.display = "none";
+    messageEl.classList.remove("show");
+    buildBoard();
+    buildKeyboard();
+  }
+
+  // Physical keyboard support
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const key = e.key;
+    if (key === "Enter") {
+      handleKey("enter");
+    } else if (key === "Backspace") {
+      handleKey("back");
+    } else if (/^[a-zA-Z]$/.test(key)) {
+      handleKey(key.toLowerCase());
+    }
+  });
+
+  playAgainBtn.addEventListener("click", newGame);
+
+  newGame();
+})();
+</script>
+</body>
+</html>
