@@ -111,7 +111,7 @@ ol.plan{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
   <div class="stats">
     <div class="stat"><span class="eyebrow">Outside light by</span><b id="s-light">--:--</b><small>Within 30 min of waking</small></div>
     <div class="stat"><span class="eyebrow">Phone free until</span><b id="s-phone">--:--</b><small>No scrolling before breakfast is done</small></div>
-    <div class="stat"><span class="eyebrow">Ready to leave</span><b id="s-leave">--:--</b><small id="s-leave-note">About 1 hour after waking</small></div>
+    <div class="stat"><span class="eyebrow">Ready to leave</span><b id="s-leave">--:--</b><small id="s-leave-note">About 1 h 20 min after waking</small></div>
   </div>
 
   <div class="progress"><div class="bar"><i id="bar"></i></div><span id="count">0 / 0</span></div>
@@ -149,11 +149,12 @@ const PLANS = {
     {t:5, d:10, title:"Get outside light", why:"5–10 minutes outdoors (10–20 if it's cloudy). This is the strongest signal to your body clock: more alert now, sleepy at the right time tonight. Through a window is much weaker. No sunglasses, and never look straight at the sun."},
     {t:15, d:5, title:"Move for 5 minutes", why:"Wakes up your body and keeps running legs happy. Do it outside to double up with the light.", list:["10 leg swings each side, forward and sideways","10 hip circles each way","15 calf raises","10 bodyweight squats"]},
     {t:20, d:10, title:"Shower, finish with 30 seconds cool", why:"The cool finish is optional, but it gives a quick boost in alertness and mood."},
-    {t:30, d:15, title:"Breakfast: protein plus carbs", why:"Aim for about 20–30 g of protein and a good portion of carbs. Carbs fuel your brain in lessons and your training later. Eat away from your phone.", list:["Porridge with milk, banana and peanut butter","2–3 eggs on wholegrain toast","Greek yogurt with oats and berries"]},
-    {t:45, d:2, title:"One-minute reset", why:"Five slow breaths: two short inhales through the nose, one long exhale through the mouth. Then think of one thing you're looking forward to today."},
-    {t:47, d:3, title:"Write your top 3", why:"Three things only: something for school, today's training session, and one thing just for you."},
-    {t:50, d:10, title:"Pack the bag", why:"Full water bottle, a snack for after school (banana, sandwich, or yogurt) so you have fuel for training, and your kit if you run today."},
-    {t:60, d:0, title:"Head out, walk or cycle if you can", why:"More daylight and movement on the way, so you arrive awake instead of sleepy."}
+    {t:30, d:15, title:"Get dressed and brush your teeth", why:"School clothes on and teeth brushed before breakfast. Brushing before you eat is fine: the fluoride coats your teeth and protects them while you eat. Just spit, don't rinse."},
+    {t:45, d:20, title:"Breakfast: protein plus carbs", why:"Aim for about 20–30 g of protein and a good portion of carbs. Carbs fuel your brain in lessons and your training later. Eat away from your phone.", list:["Porridge with milk, banana and peanut butter","2–3 eggs on wholegrain toast","Greek yogurt with oats and berries"]},
+    {t:65, d:2, title:"One-minute reset", why:"Five slow breaths: two short inhales through the nose, one long exhale through the mouth. Then think of one thing you're looking forward to today."},
+    {t:67, d:3, title:"Write your top 3", why:"Three things only: something for school, today's training session, and one thing just for you."},
+    {t:70, d:10, title:"Pack the bag", why:"Full water bottle, a snack for after school (banana, sandwich, or yogurt) so you have fuel for training, and your kit if you run today."},
+    {t:80, d:0, title:"Head out, walk or cycle if you can", why:"More daylight and movement on the way, so you arrive awake instead of sleepy."}
   ],
   run: [
     {t:0, d:1, title:"Get up on the first alarm", why:"Feet on the floor, no snooze. Lay your kit out the night before so there's nothing to decide."},
@@ -162,11 +163,12 @@ const PLANS = {
     {t:8, d:7, title:"Dynamic warm-up outside", why:"Being outside starts your morning light straight away.", list:["10 leg swings each side","10 walking lunges","20 seconds high knees, 20 seconds butt kicks","2 easy strides of 15 seconds"]},
     {t:15, d:35, title:"Run the session on your plan", why:"Morning runs are usually easy runs: you should be able to talk in full sentences. Outdoor running also counts as your morning light."},
     {t:50, d:10, title:"Cool down, then shower", why:"Walk for a few minutes, a quick calf and hip stretch, then shower."},
-    {t:60, d:15, title:"Recovery breakfast", why:"Eat within an hour of finishing. Bigger than a normal breakfast: plenty of carbs to refill, plus about 20–30 g of protein to repair.", list:["Big bowl of porridge with milk, honey and banana","Eggs on toast with a glass of milk","Bagel with peanut butter and a yogurt"]},
-    {t:75, d:2, title:"One-minute reset", why:"Five slow breaths: two short inhales through the nose, one long exhale. Then think of one thing you're looking forward to."},
-    {t:77, d:3, title:"Write your top 3", why:"Three things only: something for school, one recovery job (stretch, sleep on time), and one thing just for you."},
-    {t:80, d:10, title:"Pack the bag, top up the water", why:"Refill your bottle and pack a snack for mid-morning. You'll be hungrier than usual today."},
-    {t:90, d:0, title:"Head out", why:"You've already trained, had light and eaten well. The hard part of the day is done."}
+    {t:60, d:15, title:"Get dressed and brush your teeth", why:"School clothes on and teeth brushed before breakfast. Brushing before you eat is fine: the fluoride protects your teeth while you eat. Just spit, don't rinse."},
+    {t:75, d:20, title:"Recovery breakfast", why:"You're still inside the hour after your run, which is when your muscles soak up food best. Bigger than a normal breakfast: plenty of carbs to refill, plus about 20–30 g of protein to repair.", list:["Big bowl of porridge with milk, honey and banana","Eggs on toast with a glass of milk","Bagel with peanut butter and a yogurt"]},
+    {t:95, d:2, title:"One-minute reset", why:"Five slow breaths: two short inhales through the nose, one long exhale. Then think of one thing you're looking forward to."},
+    {t:97, d:3, title:"Write your top 3", why:"Three things only: something for school, one recovery job (stretch, sleep on time), and one thing just for you."},
+    {t:100, d:10, title:"Pack the bag, top up the water", why:"Refill your bottle and pack a snack for mid-morning. You'll be hungrier than usual today."},
+    {t:110, d:0, title:"Head out", why:"You've already trained, had light and eaten well. The hard part of the day is done."}
   ]
 };
 
@@ -197,9 +199,9 @@ function render(){
     </li>`).join("");
   const last = plan[plan.length-1].t;
   $("s-light").textContent = fmt(w + (mode === "run" ? 8 : 15));
-  $("s-phone").textContent = fmt(w + (mode === "run" ? 75 : 45));
+  $("s-phone").textContent = fmt(w + (mode === "run" ? 95 : 65));
   $("s-leave").textContent = fmt(w + last);
-  $("s-leave-note").textContent = mode === "run" ? "About 1.5 hours after waking" : "About 1 hour after waking";
+  $("s-leave-note").textContent = "About " + Math.floor(last/60) + " h " + (last%60) + " min after waking";
   $("t-wake").textContent = fmt(w);
   $("t-bed").textContent = fmt(w - 540);
   $("t-screens").textContent = fmt(w - 600);
