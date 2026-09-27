@@ -1,0 +1,232 @@
+<title>First Hour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#EEF3F8; --surface:#FFFFFF; --ink:#14213D; --muted:#56637A; --line:#D5DEEA;
+  --accent:#E8871E; --accent-soft:#FDEBD3; --good:#2E8B57; --good-soft:#DCF1E4;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Figtree",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0D1526; --surface:#16213A; --ink:#E9EEF7; --muted:#9AA8C1; --line:#26344F;
+    --accent:#F4A24A; --accent-soft:#3A2A17; --good:#5CC98A; --good-soft:#17372A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0D1526; --surface:#16213A; --ink:#E9EEF7; --muted:#9AA8C1; --line:#26344F;
+  --accent:#F4A24A; --accent-soft:#3A2A17; --good:#5CC98A; --good-soft:#17372A;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);padding:28px 16px 64px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+h1{font:800 clamp(2.2rem,7vw,3.2rem)/1 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.lede{color:var(--muted);margin:8px 0 0;max-width:60ch}
+.eyebrow{font:700 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.field{display:flex;flex-direction:column;gap:6px}
+input[type=time]{font:700 1.4rem var(--mono);color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:8px 12px}
+.seg{display:flex;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:3px}
+.seg button{font:600 .95rem var(--body);color:var(--muted);background:none;border:0;border-radius:7px;padding:10px 14px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+button:focus-visible,input:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stat{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.stat b{font:700 1.35rem var(--mono);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:.82rem;line-height:1.3}
+@media (max-width:520px){.stats{grid-template-columns:1fr}.stat{flex-direction:row;align-items:baseline;justify-content:space-between;flex-wrap:wrap;column-gap:12px}.stat small{flex-basis:100%}}
+
+.progress{display:flex;align-items:center;gap:12px}
+.bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--good);transition:width .3s}
+.progress span{font:700 .85rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+
+.rule{background:var(--accent-soft);border-radius:12px;padding:12px 16px;font-size:.95rem}
+.rule b{color:var(--ink)}
+
+ol.plan{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.step{display:grid;grid-template-columns:78px 1fr;gap:14px;position:relative;padding-bottom:18px}
+.step::before{content:"";position:absolute;left:38px;top:34px;bottom:0;width:2px;background:var(--line)}
+.step:last-child::before{display:none}
+.when{display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:4px}
+.tplus{font:700 .78rem var(--mono);color:var(--accent);background:var(--accent-soft);padding:3px 7px;border-radius:6px;white-space:nowrap}
+.clock{font:500 .78rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;transition:opacity .2s,border-color .2s}
+.card h3{font:700 1.12rem/1.25 var(--display);margin:0}
+.card p{margin:0;color:var(--muted);font-size:.93rem;grid-column:1/-1;max-width:62ch}
+.card .dur{font:500 .75rem var(--mono);color:var(--muted);white-space:nowrap;align-self:start;padding-top:4px}
+.card ul{grid-column:1/-1;margin:4px 0 0;padding-left:18px;color:var(--muted);font-size:.9rem}
+.check{grid-column:1/-1;justify-self:start;margin-top:8px;display:inline-flex;align-items:center;gap:8px;font:600 .88rem var(--body);color:var(--ink);background:none;border:1.5px solid var(--line);border-radius:99px;padding:6px 14px 6px 8px;cursor:pointer}
+.check .box{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);display:grid;place-items:center}
+.step.done .card{opacity:.55}
+.step.done .check{border-color:var(--good);background:var(--good-soft)}
+.step.done .check .box{border-color:var(--good);background:var(--good)}
+.step.done .check .box::after{content:"";width:5px;height:9px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.step.now .card{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.step.now .tplus{background:var(--accent);color:var(--surface)}
+.nowtag{display:none;font:700 .68rem var(--mono);letter-spacing:.1em;color:var(--accent)}
+.step.now .nowtag{display:block}
+
+.sleep{background:var(--ink);color:var(--bg);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.sleep h2{font:800 1.5rem/1.1 var(--display);margin:0}
+.sleep .eyebrow{color:var(--accent)}
+.sleep .times{display:flex;flex-wrap:wrap;gap:24px}
+.sleep .times div{display:flex;flex-direction:column}
+.sleep .times b{font:700 1.6rem var(--mono);font-variant-numeric:tabular-nums}
+.sleep .times small{opacity:.75;font-size:.82rem}
+.sleep ul{margin:0;padding-left:18px;opacity:.9;font-size:.93rem;display:flex;flex-direction:column;gap:4px}
+.foot{color:var(--muted);font-size:.82rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:center}
+.foot button{font:600 .85rem var(--body);background:none;border:1.5px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Morning plan · school + running</div>
+    <h1>Your first <span>hour</span></h1>
+    <p class="lede">Every step is timed from the moment you wake up. Set your wake time and pick today's type of day. The step you should be on right now glows orange.</p>
+  </header>
+
+  <div class="controls">
+    <div class="field">
+      <label class="eyebrow" for="wake">I wake up at</label>
+      <input id="wake" type="time" value="07:00">
+    </div>
+    <div class="field">
+      <span class="eyebrow">Today is a</span>
+      <div class="seg" role="group" aria-label="Type of day">
+        <button id="mode-school" data-mode="school" aria-pressed="true">School day</button>
+        <button id="mode-run" data-mode="run" aria-pressed="false">Morning run day</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="eyebrow">Outside light by</span><b id="s-light">--:--</b><small>Within 30 min of waking</small></div>
+    <div class="stat"><span class="eyebrow">Phone free until</span><b id="s-phone">--:--</b><small>No scrolling before breakfast is done</small></div>
+    <div class="stat"><span class="eyebrow">Ready to leave</span><b id="s-leave">--:--</b><small id="s-leave-note">About 1 hour after waking</small></div>
+  </div>
+
+  <div class="progress"><div class="bar"><i id="bar"></i></div><span id="count">0 / 0</span></div>
+
+  <ol class="plan" id="plan"></ol>
+
+  <section class="sleep">
+    <div class="eyebrow">The morning sets up tonight</div>
+    <h2>Protect the 9 hours</h2>
+    <div class="times">
+      <div><b id="t-screens">--:--</b><small>Screens off, lights low</small></div>
+      <div><b id="t-bed">--:--</b><small>Lights out (9 h before waking)</small></div>
+      <div><b id="t-wake">--:--</b><small>Wake, same time every day</small></div>
+    </div>
+    <ul>
+      <li>Teens need 8–10 hours. Training days, aim for the top end: muscles repair while you sleep.</li>
+      <li>Keep weekend wake-ups within an hour of this time. Big lie-ins make Monday feel like jet lag.</li>
+      <li>Skip coffee and energy drinks. At your age they hurt sleep more than they help focus.</li>
+      <li>Phone charges outside your bedroom, or at least out of reach of your bed.</li>
+    </ul>
+  </section>
+
+  <div class="foot">
+    <span>General wellbeing guidance, not medical advice. If something hurts when you run, tell your coach.</span>
+    <button id="reset">Untick all</button>
+  </div>
+</div>
+
+<script>
+const PLANS = {
+  school: [
+    {t:0, d:1, title:"Get up on the first alarm", why:"Feet on the floor, no snooze. Snoozing chops up your last bit of sleep and leaves you groggier for longer."},
+    {t:1, d:2, title:"Drink a big glass of water", why:"About 400–500 ml. You've gone 8+ hours without a drink, and even mild dehydration dulls focus."},
+    {t:3, d:2, title:"Open the curtains, lights on", why:"Bright light tells your brain the day has started and clears morning grogginess faster."},
+    {t:5, d:10, title:"Get outside light", why:"5–10 minutes outdoors (10–20 if it's cloudy). This is the strongest signal to your body clock: more alert now, sleepy at the right time tonight. Through a window is much weaker. No sunglasses, and never look straight at the sun."},
+    {t:15, d:5, title:"Move for 5 minutes", why:"Wakes up your body and keeps running legs happy. Do it outside to double up with the light.", list:["10 leg swings each side, forward and sideways","10 hip circles each way","15 calf raises","10 bodyweight squats"]},
+    {t:20, d:10, title:"Shower, finish with 30 seconds cool", why:"The cool finish is optional, but it gives a quick boost in alertness and mood."},
+    {t:30, d:15, title:"Breakfast: protein plus carbs", why:"Aim for about 20–30 g of protein and a good portion of carbs. Carbs fuel your brain in lessons and your training later. Eat away from your phone.", list:["Porridge with milk, banana and peanut butter","2–3 eggs on wholegrain toast","Greek yogurt with oats and berries"]},
+    {t:45, d:2, title:"One-minute reset", why:"Five slow breaths: two short inhales through the nose, one long exhale through the mouth. Then think of one thing you're looking forward to today."},
+    {t:47, d:3, title:"Write your top 3", why:"Three things only: something for school, today's training session, and one thing just for you."},
+    {t:50, d:10, title:"Pack the bag", why:"Full water bottle, a snack for after school (banana, sandwich, or yogurt) so you have fuel for training, and your kit if you run today."},
+    {t:60, d:0, title:"Head out, walk or cycle if you can", why:"More daylight and movement on the way, so you arrive awake instead of sleepy."}
+  ],
+  run: [
+    {t:0, d:1, title:"Get up on the first alarm", why:"Feet on the floor, no snooze. Lay your kit out the night before so there's nothing to decide."},
+    {t:1, d:2, title:"Drink a big glass of water", why:"About 400–500 ml before you run. You've gone 8+ hours without a drink."},
+    {t:3, d:5, title:"Small snack", why:"Something light and easy: a banana, or toast with honey or jam. It gives you energy for the run without a heavy stomach."},
+    {t:8, d:7, title:"Dynamic warm-up outside", why:"Being outside starts your morning light straight away.", list:["10 leg swings each side","10 walking lunges","20 seconds high knees, 20 seconds butt kicks","2 easy strides of 15 seconds"]},
+    {t:15, d:35, title:"Run the session on your plan", why:"Morning runs are usually easy runs: you should be able to talk in full sentences. Outdoor running also counts as your morning light."},
+    {t:50, d:10, title:"Cool down, then shower", why:"Walk for a few minutes, a quick calf and hip stretch, then shower."},
+    {t:60, d:15, title:"Recovery breakfast", why:"Eat within an hour of finishing. Bigger than a normal breakfast: plenty of carbs to refill, plus about 20–30 g of protein to repair.", list:["Big bowl of porridge with milk, honey and banana","Eggs on toast with a glass of milk","Bagel with peanut butter and a yogurt"]},
+    {t:75, d:2, title:"One-minute reset", why:"Five slow breaths: two short inhales through the nose, one long exhale. Then think of one thing you're looking forward to."},
+    {t:77, d:3, title:"Write your top 3", why:"Three things only: something for school, one recovery job (stretch, sleep on time), and one thing just for you."},
+    {t:80, d:10, title:"Pack the bag, top up the water", why:"Refill your bottle and pack a snack for mid-morning. You'll be hungrier than usual today."},
+    {t:90, d:0, title:"Head out", why:"You've already trained, had light and eaten well. The hard part of the day is done."}
+  ]
+};
+
+const $ = id => document.getElementById(id);
+const today = () => new Date().toISOString().slice(0,10);
+const load = (k,f) => { try { const v = localStorage.getItem(k); return v === null ? f : JSON.parse(v); } catch(e){ return f; } };
+const save = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+
+let mode = load("fh-mode","school");
+$("wake").value = load("fh-wake","07:00");
+
+function wakeMins(){ const [h,m] = ($("wake").value || "07:00").split(":").map(Number); return h*60+m; }
+function fmt(mins){ mins = ((mins % 1440) + 1440) % 1440; return String(Math.floor(mins/60)).padStart(2,"0")+":"+String(mins%60).padStart(2,"0"); }
+function doneKey(){ return "fh-done-"+today()+"-"+mode; }
+
+function render(){
+  const plan = PLANS[mode], w = wakeMins(), done = load(doneKey(), []);
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+  $("plan").innerHTML = plan.map((s,i) => `
+    <li class="step${done.includes(i) ? " done" : ""}" data-i="${i}">
+      <div class="when"><span class="tplus">+${s.t} min</span><span class="clock">${fmt(w+s.t)}</span><span class="nowtag">NOW</span></div>
+      <div class="card">
+        <h3>${s.title}</h3><span class="dur">${s.d ? s.d+" min" : ""}</span>
+        <p>${s.why}</p>
+        ${s.list ? "<ul>"+s.list.map(x=>"<li>"+x+"</li>").join("")+"</ul>" : ""}
+        <button class="check" type="button"><span class="box"></span>${done.includes(i) ? "Done" : "Mark done"}</button>
+      </div>
+    </li>`).join("");
+  const last = plan[plan.length-1].t;
+  $("s-light").textContent = fmt(w + (mode === "run" ? 8 : 15));
+  $("s-phone").textContent = fmt(w + (mode === "run" ? 75 : 45));
+  $("s-leave").textContent = fmt(w + last);
+  $("s-leave-note").textContent = mode === "run" ? "About 1.5 hours after waking" : "About 1 hour after waking";
+  $("t-wake").textContent = fmt(w);
+  $("t-bed").textContent = fmt(w - 540);
+  $("t-screens").textContent = fmt(w - 600);
+  $("count").textContent = done.length + " / " + plan.length;
+  $("bar").style.width = (done.length/plan.length*100) + "%";
+  markNow();
+}
+
+function markNow(){
+  const plan = PLANS[mode], d = new Date();
+  const since = d.getHours()*60 + d.getMinutes() - wakeMins();
+  document.querySelectorAll(".step").forEach(el => el.classList.remove("now"));
+  if (since < 0 || since > plan[plan.length-1].t + 15) return;
+  let idx = 0; plan.forEach((s,i) => { if (s.t <= since) idx = i; });
+  document.querySelector(`.step[data-i="${idx}"]`)?.classList.add("now");
+}
+
+$("plan").addEventListener("click", e => {
+  const btn = e.target.closest(".check"); if (!btn) return;
+  const i = +btn.closest(".step").dataset.i;
+  let done = load(doneKey(), []);
+  done = done.includes(i) ? done.filter(x => x !== i) : [...done, i];
+  save(doneKey(), done); render();
+});
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => { mode = b.dataset.mode; save("fh-mode", mode); render(); }));
+$("wake").addEventListener("change", () => { save("fh-wake", $("wake").value); render(); });
+$("reset").addEventListener("click", () => { save(doneKey(), []); render(); });
+setInterval(markNow, 30000);
+render();
+</script>
